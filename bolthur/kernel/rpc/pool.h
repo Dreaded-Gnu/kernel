@@ -26,5 +26,7 @@
 void rpc_pool_setup( void );
 rpc_backup_t* rpc_pool_pop( void );
 void rpc_pool_push( rpc_backup_t* );
+void rpc_pool_init( void );
+void rpc_pool_expand( void );
 
 #endif

@@ -17,13 +17,10 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../lib/string.h"
 #include "../lib/stdlib.h"
 #include "backup.h"
 #include "data.h"
-#if defined( PRINT_RPC )
-  #include "../debug/debug.h"
-#endif
+#include "pool.h"
 
 /**
  * @fn void rpc_backup_destroy(rpc_backup_t*)
@@ -40,6 +37,6 @@ void rpc_backup_destroy( rpc_backup_t* backup ) {
   if ( backup->context ) {
     free( backup->context );
   }
-  // free backup
-  free( backup );
+  // push again back on pool
+  rpc_pool_push( backup );
 }

@@ -24,6 +24,7 @@
 #include "../../../../mm/virt.h"
 #include "../../../../rpc/backup.h"
 #include "../../../../rpc/data.h"
+#include "../../../../rpc/pool.h"
 #if defined( PRINT_RPC )
   #include "../../../../debug/debug.h"
 #endif
@@ -96,7 +97,7 @@ rpc_backup_t* rpc_backup_create(
   #endif
 
   // reserve space for backup object
-  rpc_backup_t* backup = malloc( sizeof( *backup ) );
+  rpc_backup_t* backup = rpc_pool_pop();
   if ( ! backup ) {
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "Unable to reserve memory for backup structure!\r\n" )
