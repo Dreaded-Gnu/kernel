@@ -192,6 +192,7 @@ void rpc_handle_open_async(
     free( open_response );
     return;
   }
+  EARLY_STARTUP_PRINT( "open %s\r\n", request->path )
   // set handler and copy over stuff
   container->handler = open_response->handler;
   memcpy( &container->info, &open_response->st, sizeof( open_response->st ) );
@@ -250,7 +251,7 @@ void rpc_handle_open(
   }
   // generate handle
   handle_node_t* container = nullptr;
-  int result = handle_generate(
+  const int result = handle_generate(
     &container,
     origin,
     mount_point->pid,

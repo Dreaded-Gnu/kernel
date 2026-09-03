@@ -21,7 +21,8 @@
 #define _TIMER_H
 
 #include <stddef.h>
-#include "task/thread.h"
+
+typedef struct task_thread task_thread_t;
 
 typedef struct {
   size_t id;
@@ -42,6 +43,6 @@ size_t timer_generate_id( void );
 timer_callback_entry_t* timer_register_callback( task_thread_t*, size_t, size_t, bool );
 bool timer_unregister_callback( size_t );
 void timer_handle_callback( void );
-timer_callback_entry_t* timer_get_by_process_id( pid_t );
+uint64_t timer_get_current_tick_value( void );
 
 #endif

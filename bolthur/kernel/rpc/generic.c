@@ -21,6 +21,7 @@
 #include "../lib/stdlib.h"
 #include "../mm/phys.h"
 #include "../mm/virt.h"
+#include "pool.h"
 #include "backup.h"
 #include "data.h"
 #include "queue.h"
@@ -30,8 +31,6 @@
   #include "../lib/inttypes.h"
 #endif
 
-#include "../debug/debug.h"
-#include "../lib/inttypes.h"
 static avl_tree_t* origin_tree = nullptr;
 
 /**
@@ -353,11 +352,10 @@ rpc_backup_t* rpc_generic_raise(
       #if defined( PRINT_RPC )
         DEBUG_OUTPUT( "Error while allocating rpc info object\r\n" )
       #endif
-      rpc_backup_destroy( backup );
+      // remove from list with cleanup
+      list_remove_data( backup->thread->process->rpc_queue, backup, true );
       return nullptr;
     }
-    // clear out
-    memset( rpc_info, 0, sizeof( *rpc_info ) );
     // prepare structure
     rpc_info->source_process = source->process->id;
     rpc_info->rpc_id = backup->data_id;
@@ -373,7 +371,8 @@ rpc_backup_t* rpc_generic_raise(
         DEBUG_OUTPUT( "Error while adding information to origin tree\r\n" )
       #endif
       free( rpc_info );
-      rpc_backup_destroy( backup );
+      // remove from list with cleanup
+      list_remove_data( backup->thread->process->rpc_queue, backup, true );
       return nullptr;
     }
     // cache rpc info structure
@@ -385,7 +384,8 @@ rpc_backup_t* rpc_generic_raise(
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "Error while preparing target %d\r\n", target->id )
     #endif
-    rpc_backup_destroy( backup );
+    // remove from list with cleanup
+    list_remove_data( backup->thread->process->rpc_queue, backup, true );
     // skip if error occurred during rpc invoke
     return nullptr;
   }
@@ -400,12 +400,15 @@ rpc_backup_t* rpc_generic_raise(
  * @return
  */
 bool rpc_generic_init( void ) {
+  // setup rpc pool
+  rpc_pool_setup();
   // create tree for origin source handling
   origin_tree = avl_create_tree(
     compare_callback,
     lookup_callback,
     cleanup_callback
   );
+  // return tree as bool
   return origin_tree;
 }
 

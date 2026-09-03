@@ -37,25 +37,27 @@ typedef enum {
 
 typedef enum {
   DWHCI_SPLIT_PHASE_NONE = 0,
-  DWHCI_SPLIT_PHASE_SSPLIT = 1,
-  DWHCI_SPLIT_PHASE_CSPLIT = 2,
+  DWHCI_SPLIT_PHASE_SSPLIT,
+  DWHCI_SPLIT_PHASE_CSPLIT,
 } dwhci_split_phase_t;
 
 typedef enum {
   DWHCI_QUEUE_CHANNEL_STATUS_PENDING = 0,
-  DWHCI_QUEUE_CHANNEL_STATUS_SETUP = 1,
-  DWHCI_QUEUE_CHANNEL_STATUS_DATA = 2,
-  DWHCI_QUEUE_CHANNEL_STATUS_ACK = 3,
-  DWHCI_QUEUE_CHANNEL_STATUS_DONE = 4,
+  DWHCI_QUEUE_CHANNEL_STATUS_SETUP,
+  DWHCI_QUEUE_CHANNEL_STATUS_DATA,
+  DWHCI_QUEUE_CHANNEL_STATUS_ACK,
+  DWHCI_QUEUE_CHANNEL_STATUS_DONE,
+  DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT,
+  DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT,
 
-  DWHCI_QUEUE_POLL_STATUS_PENDING = 5,
-  DWHCI_QUEUE_POLL_STATUS_DATA = 6,
-  DWHCI_QUEUE_POLL_STATUS_ACK = 7,
-  DWHCI_QUEUE_POLL_STATUS_DONE = 8,
-  DWHCI_QUEUE_POLL_STATUS_WAIT = 9,
+  DWHCI_QUEUE_POLL_STATUS_PENDING,
+  DWHCI_QUEUE_POLL_STATUS_DATA,
+  DWHCI_QUEUE_POLL_STATUS_ACK ,
+  DWHCI_QUEUE_POLL_STATUS_DONE,
+  DWHCI_QUEUE_POLL_STATUS_WAIT,
 
-  DWHCI_QUEUE_CANCEL = 10,
-  DWHCI_QUEUE_CANCEL_DONE = 11,
+  DWHCI_QUEUE_CANCEL,
+  DWHCI_QUEUE_CANCEL_DONE,
 } dwhci_queue_status_t;
 
 /**
@@ -98,6 +100,10 @@ typedef struct channel_queue_entry {
   size_t timer;
   /** error */
   libusb_transfer_error_t error;
+  /** transfer status */
+  libusb_transfer_error_t transfer_status;
+  /** previous transfer status */
+  libusb_transfer_error_t previous_transfer_status;
   /** poll channel state */
   dwhci_channel_state_t poll_state;
   /** last poll timer */
@@ -112,6 +118,10 @@ typedef struct channel_queue_entry {
   uint32_t packet_size;
   uint32_t poll_ssplit_frame_num;
   uint32_t poll_csplit_frame_num;
+  uint32_t verify_char;
+  uint32_t verify_split;
+  uint32_t verify_size;
+  uint32_t verify_num;
   /** pointer to next entry */
   struct channel_queue_entry* next;
   /** pointer to previous entry */
@@ -139,7 +149,7 @@ extern int fd_iomem;
 extern void* databuffer;
 extern dwhci_configuration_t configuration;
 
-response_t dwhci_prepare_channel( uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, const libusb_pipe_address_t*, uint32_t, bool, channel_queue_entry_t* );
+response_t dwhci_prepare_channel( uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, const libusb_pipe_address_t*, bool, channel_queue_entry_t* );
 response_t dwhci_allocate_channel( uint8_t* );
 response_t dwhci_free_channel( uint8_t );
 response_t dwhci_queue_add_entry( void*, size_t, dwhci_queue_status_t, channel_queue_entry_t** );
@@ -150,12 +160,13 @@ response_t dwhci_enable_channel_interrupt( uint8_t );
 response_t dwhci_disable_channel_interrupt( uint8_t );
 response_t dwhci_channel_prepare_dma( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_start_channel( channel_queue_entry_t* );
-response_t dwhci_channel_send_async_stop_channel( const channel_queue_entry_t*, bool );
+response_t dwhci_channel_send_async_stop_channel( channel_queue_entry_t*, bool );
 response_t dwhci_channel_send_async_setup( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_data( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_ack( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_done( channel_queue_entry_t* );
-response_t dwhci_channel_send_cancel( const channel_queue_entry_t* );
+response_t dwhci_channel_send_async_done_halt( channel_queue_entry_t* );
+response_t dwhci_channel_send_cancel( channel_queue_entry_t* );
 response_t dwhci_channel_send_cancel_done( channel_queue_entry_t* );
 response_t dwhci_channel_async_continue( channel_queue_entry_t* );
 response_t dwhci_channel_send_async( usb_control_message_t*, size_t, const usbd_control_message_t*, size_t );

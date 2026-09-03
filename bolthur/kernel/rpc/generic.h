@@ -55,5 +55,4 @@ rpc_backup_t* rpc_generic_raise( task_thread_t*, task_process_t*, size_t, void*,
 bool rpc_generic_setup_mailbox( task_process_t* );
 void rpc_generic_destroy_mailbox( task_process_t* );
 
-
 #endif

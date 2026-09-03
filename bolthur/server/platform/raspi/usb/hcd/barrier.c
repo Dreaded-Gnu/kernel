@@ -31,7 +31,7 @@ void barrier_dmb( void ) {
       : "memory"
     );
   #else
-    __asm__ __volatile__ ( "dmb" ::: "memory" );
+    __asm__ __volatile__ ( "dmb sy" ::: "memory" );
   #endif
 }
 
@@ -47,7 +47,7 @@ void barrier_dsb( void ) {
       : "memory"
     );
   #else
-    __asm__ __volatile__ ( "dsb" ::: "memory" );
+    __asm__ __volatile__ ( "dsb sy" ::: "memory" );
   #endif
 }
 

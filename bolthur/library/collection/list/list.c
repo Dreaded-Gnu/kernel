@@ -234,11 +234,11 @@ list_item_t* list_item_create( void* data ) {
   // allocate new node
   list_item_t* node = malloc( sizeof( list_item_t ) );
   // check malloc result
-  if ( !node ) {
+  if ( ! node ) {
     return nullptr;
   }
   // overwrite allocated memory with 0
-  memset( ( void* )node, 0, sizeof( list_item_t ) );
+  memset( node, 0, sizeof( list_item_t ) );
   // populate created node
   node->next = nullptr;
   node->previous = nullptr;
@@ -255,18 +255,12 @@ list_item_t* list_item_create( void* data ) {
  * @return void* data of first element or nullptr if empty
  */
 void* list_peek_front_data( list_manager_t* list ) {
-  // check parameter
-  if ( !list ) {
+  // handle invalid parameter or empty
+  if ( ! list || ! list->first ) {
     return nullptr;
   }
-  // get first element
-  list_item_t* first = list->first;
-  // handle empty list
-  if ( !first ) {
-    return nullptr;
-  }
-  // return data of first element
-  return first->data;
+  // return first element data
+  return list->first->data;
 }
 
 /**
@@ -407,37 +401,30 @@ void list_print( list_manager_t* list ) {
  * @return false
  */
 bool list_push_front_data( list_manager_t* list, void* data ) {
-  list_item_t* first;
-  list_item_t* node;
-
   // handle invalid parameter
-  if ( !list || !data ) {
+  if ( ! list || ! data ) {
     return false;
   }
   // set list head
-  first = list->first;
-
+  list_item_t* first = list->first;
   // create new node
-  node = list_item_create( data );
+  list_item_t* node = list_item_create(data);
   // handle error
   if ( !node ) {
     return false;
   }
-
   // set next to first
   node->next = first;
   // set previous for first element
   if ( first ) {
     first->previous = node;
   }
-
   // overwrite first element within list pointer
   list->first = node;
   // set last element if invalid
-  if ( !list->last ) {
+  if ( ! list->last ) {
     list->last = list->first;
   }
-
   return true;
 }
 
@@ -451,37 +438,28 @@ bool list_push_front_data( list_manager_t* list, void* data ) {
  * @return false
  */
 bool list_push_back_data( list_manager_t* list, void* data ) {
-  list_item_t* last;
-  list_item_t* node;
-
   // handle invalid parameter
   if ( !list || !data ) {
     return false;
   }
-  // set list head
-  last = list->last;
-
   // create new node
-  node = list_item_create( data );
+  list_item_t* node = list_item_create( data );
   // handle error
-  if ( !node ) {
+  if ( ! node ) {
     return false;
   }
-
-  // set previous to last
-  node->previous = last;
-  // set next for last element
-  if ( last ) {
-    last->next = node;
+  // handle empty
+  if ( ! list->first ) {
+    list->first = list->last = node;
+    return true;
   }
-
+  // set previous to last
+  node->previous = list->last;
+  // set next for last element
+  list->last->next = node;
   // overwrite last element within list pointer
   list->last = node;
-  // set first element if invalid
-  if ( !list->first ) {
-    list->first = list->last;
-  }
-
+  // return success
   return true;
 }
 

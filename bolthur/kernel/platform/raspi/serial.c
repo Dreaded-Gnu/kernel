@@ -198,7 +198,7 @@ static void serial_clear( [[maybe_unused]] void* context ) {
   // clear pending interrupts.
   io_out32( base + UARTICR, state );
   // trigger serial event
-  event_enqueue( EVENT_SERIAL, EVENT_DETERMINE_ORIGIN( context ) );
+  event_enqueue( EVENT_SERIAL );
 }
 
 /**

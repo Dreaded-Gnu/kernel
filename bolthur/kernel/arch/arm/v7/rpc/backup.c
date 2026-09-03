@@ -61,16 +61,20 @@ rpc_backup_t* rpc_backup_create(
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT( "%d: target->thread_manager = %p\r\n", target->id, target->thread_manager )
   #endif
-  avl_node_t* current = avl_iterate_first( target->thread_manager );
+  // try to use target thread
   task_thread_t* thread = target_thread;
-  // loop until usable thread has been found
-  while ( current && ! thread ) {
-    // get thread
-    auto const tmp = TASK_THREAD_GET_BLOCK( current );
-    // FIXME: CHECK IF ACTIVE
-    thread = tmp;
-    // get next thread
-    current = avl_iterate_next( target->thread_manager, current );
+  // choose one from free thread list
+  if ( ! thread ) {
+    auto current = target->free_thread_list->first;
+    // loop until usable thread has been found
+    while ( current && ! thread ) {
+      // get thread
+      auto const tmp = ( task_thread_t* )current->data;
+      // FIXME: CHECK IF ACTIVE
+      thread = tmp;
+      // get next thread
+      current = current->next;
+    }
   }
   // handle no inactive thread
   if ( ! thread ) {
@@ -99,56 +103,15 @@ rpc_backup_t* rpc_backup_create(
     #endif
     return nullptr;
   }
-  // clear out
-  memset( backup, 0, sizeof( *backup ) );
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT( "Reserved backup object: %p\r\n", backup )
   #endif
 
-  // variables
-  const list_item_t* current_list = target->rpc_queue->first;
-  rpc_backup_t* active = nullptr;
-  // try to find matching rpc
-  while( current_list ) {
-    // get current backup
-    rpc_backup_t* tmp = current_list->data;
-    // when backup is active, thread is the same and thread state is
-    // not wait for rpc call use current entry
-    #if defined( PRINT_RPC )
-      DEBUG_OUTPUT( "process = %d, tmp->active = %d, tmp->thread = %p, thread = %p, tmp->data_id = %zu, thread->state = %d\r\n",
-        tmp->thread->process->id, tmp->active ? 1 : 0, tmp->thread, thread, tmp->data_id, thread->state )
-    #endif
-    // handle not active, different thread, wait for return
-    // or executing interrupt
-    if ( ! tmp->active || tmp->thread != thread
-      || thread->state == TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN
-      || thread->state == TASK_THREAD_STATE_RPC_HALT_SWITCH
-      || thread->handling_interrupt
-    ) {
-      // get to next item
-      current_list = current_list->next;
-      // skip rest
-      continue;
-    }
-    // some debug output
-    #if defined( PRINT_RPC )
-      DEBUG_OUTPUT( "tmp = %p\r\n", ( void* )tmp )
-      DEBUG_OUTPUT( "process = %d, tmp->active = %d, tmp->thread = %p, thread = %p, tmp->data_id = %zu\r\n",
-        tmp->thread->process->id, tmp->active ? 1 : 0, tmp->thread, thread, tmp->data_id )
-    #endif
-    // set active
-    active = tmp;
-    // break out of loop
-    break;
-  }
-  #if defined( PRINT_RPC )
-    DEBUG_OUTPUT( "active = %p\r\n", ( void* )active)
-  #endif
   // get thread cpu context
   const cpu_register_context_t* cpu = thread->current_context;
-  if ( active ) {
-    cpu = active->context;
+  if ( thread->current_active_backup ) {
+    cpu = thread->current_active_backup->context;
   }
   // reserve space for backup context
   backup->context = malloc( sizeof( cpu_register_context_t ) );
@@ -161,7 +124,6 @@ rpc_backup_t* rpc_backup_create(
     DEBUG_OUTPUT( "Reserved backup cpu context: %p\r\n", backup->context )
   #endif
   // prepare and backup context area
-  memset( backup->context, 0, sizeof( cpu_register_context_t ) );
   memcpy( backup->context, cpu, sizeof( cpu_register_context_t ) );
   // debug output
   #if defined( PRINT_RPC )
@@ -258,6 +220,18 @@ rpc_backup_t* rpc_backup_create(
   backup->is_interrupt = is_interrupt;
   backup->is_timer = is_timer;
   backup->state_to_use = TASK_THREAD_STATE_RPC_QUEUED;
+  backup->active = false;
+  backup->rpc_info = nullptr;
+  backup->squeezed_in = false;
+  // debug output
+  #if defined( PRINT_RPC )
+    DEBUG_OUTPUT( "Pushing backup object to rpc queue!\r\n" )
+  #endif
+  // push back backup to queue
+  if ( ! list_push_back_data( thread->process->rpc_queue, backup ) ) {
+    rpc_backup_destroy( backup );
+    return nullptr;
+  }
   // return created backup
   return backup;
 }

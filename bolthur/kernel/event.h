@@ -30,9 +30,9 @@
 
 typedef enum {
   EVENT_PROCESS = 1,
-  EVENT_SERIAL,
-  EVENT_DEBUG,
-  EVENT_INTERRUPT_CLEANUP,
+  EVENT_SERIAL = 2,
+  EVENT_DEBUG = 3,
+  EVENT_INTERRUPT_CLEANUP = 4,
 } event_type_t;
 
 typedef enum {
@@ -42,8 +42,7 @@ typedef enum {
 
 struct event_manager {
   avl_tree_t* tree;
-  list_manager_t* queue_kernel;
-  list_manager_t* queue_user;
+  uint32_t queue_bitmap;
 };
 
 struct event_block {
@@ -71,6 +70,6 @@ bool event_init( void );
 bool event_bind( event_type_t, event_callback_t, bool );
 void event_unbind( event_type_t, event_callback_t, bool );
 void event_handle( void* );
-bool event_enqueue( event_type_t, event_origin_t );
+void event_enqueue( event_type_t );
 
 #endif

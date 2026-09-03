@@ -124,7 +124,7 @@ void syscall_process_exist( void* context ) {
  *
  * @param context context of calling thread
  */
-void syscall_process_exit( void* context ) {
+void syscall_process_exit( [[maybe_unused]] void* context ) {
   // debug output
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
@@ -133,7 +133,7 @@ void syscall_process_exit( void* context ) {
     )
   #endif
   // enqueue kill
-  task_process_prepare_kill( context, task_thread_current_thread->process );
+  task_process_prepare_kill( task_thread_current_thread->process );
 }
 
 /**
@@ -232,13 +232,7 @@ void syscall_process_replace( void* context ) {
     return;
   }
   // replace process
-  int result = task_process_replace(
-    task_thread_current_thread->process,
-    addr,
-    argv,
-    env,
-    context
-  );
+  int result = task_process_replace( task_thread_current_thread->process, addr, argv, env );
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT( "process replace result = %d\r\n", result )
   #endif
@@ -318,11 +312,11 @@ void syscall_thread_create( void* context ) {
  *
  * @param context context of calling thread
  */
-void syscall_thread_exit( void* context ) {
+void syscall_thread_exit( [[maybe_unused]] void* context ) {
   // debug output
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT( "thread exit called\r\n" )
   #endif
   // kill thread and trigger scheduling
-  task_thread_kill( task_thread_current_thread, true, context );
+  task_thread_kill( task_thread_current_thread, true );
 }

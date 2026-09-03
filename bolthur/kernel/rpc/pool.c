@@ -17,29 +17,30 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../lib/string.h"
-#include "../lib/stdlib.h"
-#include "backup.h"
-#include "data.h"
-#if defined( PRINT_RPC )
-  #include "../debug/debug.h"
-#endif
+#include "../entry.h"
+#include "../lib/assert.h"
+#include "../mm/phys.h"
+#include "../mm/virt.h"
+#include "pool.h"
+
+static uintptr_t rpc_pool_start;
+static uintptr_t rpc_pool_size;
 
 /**
- * @fn void rpc_backup_destroy(rpc_backup_t*)
- * @brief backup to destroy
- *
- * @param backup
+ * @fn void rpc_pool_setup( void )
+ * @brief Function to setup rpc pool
  */
-void rpc_backup_destroy( rpc_backup_t* backup ) {
-  // handle invalid
-  if ( ! backup ) {
-    return;
+void rpc_pool_setup( void ) {
+  // rpc pool starts with one page => ~64 possible rpc
+  rpc_pool_start = KERNEL_RPC_POOL_START;
+  rpc_pool_size = PAGE_SIZE;
+  // map rpc pool
+  for ( uintptr_t addr = rpc_pool_start; addr < rpc_pool_start + rpc_pool_size; addr += PAGE_SIZE ) {
+    assert( virt_map_address_random(
+      virt_current_kernel_context,
+      addr,
+      VIRT_MEMORY_TYPE_NORMAL_NC,
+      VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
+    ) );
   }
-  // free context
-  if ( backup->context ) {
-    free( backup->context );
-  }
-  // free backup
-  free( backup );
 }

@@ -17,29 +17,14 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../lib/string.h"
-#include "../lib/stdlib.h"
-#include "backup.h"
-#include "data.h"
-#if defined( PRINT_RPC )
-  #include "../debug/debug.h"
-#endif
+#ifndef _RPC_POOL_H
+#define _RPC_POOL_H
 
-/**
- * @fn void rpc_backup_destroy(rpc_backup_t*)
- * @brief backup to destroy
- *
- * @param backup
- */
-void rpc_backup_destroy( rpc_backup_t* backup ) {
-  // handle invalid
-  if ( ! backup ) {
-    return;
-  }
-  // free context
-  if ( backup->context ) {
-    free( backup->context );
-  }
-  // free backup
-  free( backup );
-}
+#include "backup.h"
+
+// rpc pool stuff with pre-allocated blocks for rpc structure to reduce malloc calls
+void rpc_pool_setup( void );
+rpc_backup_t* rpc_pool_pop( void );
+void rpc_pool_push( rpc_backup_t* );
+
+#endif

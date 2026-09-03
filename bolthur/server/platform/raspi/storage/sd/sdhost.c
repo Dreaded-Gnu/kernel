@@ -972,6 +972,8 @@ static sdhost_response_t issue_sd_command( uint32_t command, uint32_t argument )
         #if defined( SDHOST_ENABLE_DEBUG )
           EARLY_STARTUP_PRINT( "Request shared area failed\r\n" )
         #endif
+        // release sequence
+        iomem_release_mmio_sequence( sequence );
         // return error
         return SDHOST_RESPONSE_UNKNOWN;
       }
@@ -982,6 +984,8 @@ static sdhost_response_t issue_sd_command( uint32_t command, uint32_t argument )
         #if defined( SDHOST_ENABLE_DEBUG )
           EARLY_STARTUP_PRINT( "Request shared area failed\r\n" )
         #endif
+        // release sequence
+        iomem_release_mmio_sequence( sequence );
         // return error
         return SDHOST_RESPONSE_MEMORY;
       }

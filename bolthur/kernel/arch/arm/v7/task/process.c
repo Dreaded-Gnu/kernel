@@ -175,7 +175,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     && (
       task_thread_try_switch_to->state == TASK_THREAD_STATE_READY
       || task_thread_try_switch_to->state == TASK_THREAD_STATE_RPC_QUEUED
-      || running_thread == task_thread_try_switch_to
     )
   ) {
     next_thread = task_thread_try_switch_to;
@@ -221,7 +220,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
           && (
             task_thread_try_switch_to->state == TASK_THREAD_STATE_READY
             || task_thread_try_switch_to->state == TASK_THREAD_STATE_RPC_QUEUED
-            || running_thread == task_thread_try_switch_to
           )
         ) {
           next_thread = task_thread_try_switch_to;

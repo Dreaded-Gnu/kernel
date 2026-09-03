@@ -587,17 +587,16 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
   current = block->process->first;
   while ( current ) {
     task_process_t* process = current->data;
-    // get first thread
-    avl_node_t* first = avl_iterate_first( process->thread_manager );
+    // take first thread
+    task_thread_t* thread = list_peek_front_data( process->free_thread_list );
     // handle no thread with removal and skip
-    if ( ! first ) {
+    if ( ! thread ) {
       list_item_t* next = current->next;
       list_remove_item( block->process, current, true );
       current = next;
       continue;
     }
-    // get thread
-    auto const thread = TASK_THREAD_GET_BLOCK( first );
+    // debug output
     #if defined( PRINT_INTERRUPT )
       DEBUG_OUTPUT( "Raising interrupt handler %zu for %d\r\n",
         num, thread->process->id )
@@ -609,7 +608,7 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
       num,
       nullptr,
       0,
-      nullptr,
+      thread,
       false,
       0,
       true,
@@ -629,10 +628,14 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
     if ( first_handler ) {
       // reset first handler
       first_handler = false;
-      // enqueue scheduler
-      task_thread_try_switch_to = rpc->thread;
-      // enqueue scheduling
-      event_enqueue( EVENT_PROCESS, EVENT_DETERMINE_ORIGIN( context ) );
+      // get origin
+      const event_origin_t origin = EVENT_DETERMINE_ORIGIN( context );
+      // in case we're executed from user and thread is not current thread
+      // set try to switch to and enqueue process
+      if ( EVENT_ORIGIN_USER == origin && rpc->thread != task_thread_current_thread ) {
+        task_thread_try_switch_to = rpc->thread;
+        event_enqueue( EVENT_PROCESS );
+      }
     }
     // step to next
     current = current->next;
@@ -734,26 +737,6 @@ void interrupt_toggle( const interrupt_toggle_state_t state ) {
       // disable interrupts
       interrupt_disable();
     }
-  }
-}
-
-/**
- * @fn void interrupt_handle_possible(void*, bool)
- * @brief Method to enqueue possible interrupt handler
- * @param context
- * @param fast
- */
-void interrupt_handle_possible( void* context, const bool fast ) {
-  int8_t interrupt_bit;
-  // get pending interrupt
-  while( -1 != ( interrupt_bit = interrupt_get_pending( fast ) ) ) {
-    // call interrupt handler
-    interrupt_handle(
-      ( size_t )interrupt_bit,
-      fast ? INTERRUPT_FAST : INTERRUPT_NORMAL,
-      context,
-      true
-    );
   }
 }
 

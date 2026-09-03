@@ -24,6 +24,7 @@
 #include "../../dwhci.h"
 #include "../../../../libhcd.h"
 #include "../../../../../../../library/usb/usb.h"
+#include "../../../../iomem/barrier.h"
 
 /**
  * @fn void toggle_split_phase(const uint32_t, channel_queue_entry_t*);
@@ -78,7 +79,7 @@ static bool toggle_split_phase( const uint32_t cipt, channel_queue_entry_t* entr
  * @fn void wait_for_next_microframe( void )
  * @brief Helper to wait for next microframe
  */
-static void wait_for_next_microframe( void ) {
+[[maybe_unused]] static void wait_for_next_microframe( void ) {
   uint32_t start_frame = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM ) & 0xFFFF;
   uint32_t current_frame;
   do {
@@ -110,6 +111,9 @@ void rpc_interrupt_handle(
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "interrupt = %#"PRIx32"\r\n", interrupt )
   #endif
+  if ( ! interrupt ) {
+    EARLY_STARTUP_PRINT( "interrupt is 0\r\n" )
+  }
   // mask pending interrupts
   mmio_write( PERIPHERAL_DWHCI_CORE_INT_STAT, interrupt );
   uint32_t channel_interrupt = 0;
@@ -170,35 +174,51 @@ void rpc_interrupt_handle(
         // write back to mark them as handled
         mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT( channel ), cipt );
 
+        libusb_transfer_error_t previous = entry->previous_transfer_status;
+
         #if defined( DWHCI_ENABLE_DEBUG )
           EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+          EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
         #endif
         if ( cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE ) {
           #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Transfer complete for channel %"PRIu32"\r\n", channel )
           #endif
+          entry->transfer_status |= LIBUSB_TRANSFER_ERROR_COMPLETE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_HALT ) {
           #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Halt for channel %"PRIu32"\r\n", channel )
           #endif
+          entry->transfer_status |= LIBUSB_TRANSFER_ERROR_HALT;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_AHB_ERROR ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "AHB Error for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_AHB_ERROR;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_STALL ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Stall for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_STALL;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
+            EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
             EARLY_STARTUP_PRINT( "Nack for channel %"PRIu32"\r\n", channel )
-          #endif
+            EARLY_STARTUP_PRINT( "previous transfer = %#x\r\n", previous )
+            EARLY_STARTUP_PRINT( "transfer = %#x\r\n", entry->transfer_status )
+            EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+            EARLY_STARTUP_PRINT(
+              "HCCHAR=%#"PRIx32" HCSPLT=%#"PRIx32" HCTSIZ=%#"PRIx32" HFNUM=%#"PRIx32"\r\n",
+              entry->verify_char,
+              entry->verify_split,
+              entry->verify_size,
+              entry->verify_num
+            )
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_NO_ACKNOWLEDGE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT ) {
@@ -207,51 +227,63 @@ void rpc_interrupt_handle(
           #endif
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_NOT_YET ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Not yet for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_NOT_YET_ERROR;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_TRANSACTION_ERROR ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Transaction error for channel %"PRIu32"\r\n", channel )
-          #endif
+            EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
+            EARLY_STARTUP_PRINT( "Nack for channel %"PRIu32"\r\n", channel )
+            EARLY_STARTUP_PRINT( "previous transfer = %#x\r\n", previous )
+            EARLY_STARTUP_PRINT( "transfer = %#x\r\n", entry->transfer_status )
+            EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+            EARLY_STARTUP_PRINT(
+              "HCCHAR=%#"PRIx32" HCSPLT=%#"PRIx32" HCTSIZ=%#"PRIx32" HFNUM=%#"PRIx32"\r\n",
+              entry->verify_char,
+              entry->verify_split,
+              entry->verify_size,
+              entry->verify_num
+            )
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_TRANSACTION;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_BABBLE_ERROR ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Babble error for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BABBLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_FRAME_OVERRUN ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Frame overrun for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_FRAME_OVERRUN;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_DATA_TOGGLE_ERROR ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Data toggle error for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_DATA_TOGGLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_BUFFER_NOT_AVAILABLE ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Buffer not available for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BUFFER_NOT_AVAILABLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_EXCESSIVE_TRANSMISSION ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Excessive transmission for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BUFFER_EXCESSIVE_TRANSMISSION;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_FRAME_LIST_ROLLOVER ) {
-          #if defined( DWHCI_ENABLE_DEBUG )
+          //#if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Rollover for channel %"PRIu32"\r\n", channel )
-          #endif
+          //#endif
           entry->error |= LIBUSB_TRANSFER_ERROR_LIST_ROLLOVER;
         }
         // extract transfer size
@@ -272,13 +304,99 @@ void rpc_interrupt_handle(
         // handle short transfer
         const bool short_response = transferred != 0 && transferred < requested;
         // transfer complete flag
-        const bool transfer_complete =
-          cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE;
+        const bool transfer_complete = cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE;
+        const bool channel_halted = cipt & HCD_CHANNEL_INTERRUPT_HALT;
 
         // on short response we've to reset packet to transfer because it marks
         // the end of usb transaction
         if ( short_response ) {
           entry->packets_to_transfer = 0;
+        }
+
+        // handle csplit for interrupt polling
+        if (
+          DWHCI_SPLIT_PHASE_CSPLIT == entry->split_phase
+          && DWHCI_QUEUE_POLL_STATUS_DATA == entry->status
+          && ! split_complete
+          && ! transfer_complete
+          && ! ( cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT )
+        ) {
+          // read out split ctrl, set complete split and write it back
+          uint32_t split_control = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ) );
+          split_control |= HCD_DWHCI_CHAN_SPLIT_CONTROL_COMPLETE_SPLIT( 1 );
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ), split_control );
+          // evaluate paket count
+          const usb_interrupt_poll_t* entry_data = entry->data;
+          uint32_t packet_count = ( entry->buffer_size_to_transfer + 7 ) / 8;
+          if ( LIBUSB_SPEED_LOW != entry_data->pipe_address.speed ) {
+            packet_count = ( entry->buffer_size_to_transfer + usb_number_from_packet_size( entry_data->pipe_address.max_size ) - 1 ) / usb_number_from_packet_size( entry_data->pipe_address.max_size );
+          }
+          if ( 0 == packet_count ) {
+            packet_count = 1;
+          }
+          // write transfer data again
+          const uint32_t transfer_data = HCD_DWHCI_CHAN_XFER_SIZE_TRANSFER_SIZE( entry->buffer_size_to_transfer )
+            | HCD_DWHCI_CHAN_XFER_SIZE_PACKET_ID( entry->poll_state )
+            | HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( packet_count );
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_XFER_SIZE( channel ), transfer_data );
+          // write int mask again
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ),
+            HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
+            | HCD_CHANNEL_INTERRUPT_HALT
+            | HCD_CHANNEL_INTERRUPT_ERROR_MASK
+            | HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT
+            | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+            | HCD_CHANNEL_INTERRUPT_NOT_YET
+          );
+          // calculate target frame
+          const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+          const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
+          const uint32_t current_uframe = frame_number & 0x7;
+          const uint32_t current_linear_uframe = current_frame * 8 + current_uframe;
+          const uint32_t target_linear_uframe = current_linear_uframe + 1;
+          const uint32_t target_frame = ( target_linear_uframe / 8 ) & 0x7FF;
+          // read out host chan character, ensure that disable bit is not set, set enable
+          uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+          characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
+          characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
+          characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame & 1 );
+          characteristic |= HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
+          entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+          // write back character
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+          EARLY_STARTUP_PRINT(
+            "SSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+            entry->poll_ssplit_frame_num,
+            (entry->poll_ssplit_frame_num >> 3) & 0x7FF,
+            entry->poll_ssplit_frame_num & 0x7
+          )
+          EARLY_STARTUP_PRINT(
+            "RPC ENTRY: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+            frame_num_entry,
+            (frame_num_entry >> 3) & 0x7FF,
+            frame_num_entry & 0x7
+          )
+          EARLY_STARTUP_PRINT(
+            "CSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+            entry->poll_csplit_frame_num,
+            (entry->poll_csplit_frame_num >> 3) & 0x7FF,
+            entry->poll_csplit_frame_num & 0x7
+          )
+          // print interrupt
+          EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+          EARLY_STARTUP_PRINT( "parent device number = %"PRIu32"\r\n", entry_data->parent_device_number )
+          EARLY_STARTUP_PRINT( "port address = %"PRIu32"\r\n", entry_data->port_number + 1 )
+          EARLY_STARTUP_PRINT( "split_control = %#"PRIx32"\r\n", split_control )
+          EARLY_STARTUP_PRINT( "transfer_data = %#"PRIx32"\r\n", transfer_data )
+          EARLY_STARTUP_PRINT( "characteristic = %#"PRIx32"\r\n", characteristic )
+          // assign channel
+          channel_mask <<= 1;
+          // skip rest
+          continue;
+        }
+
+        if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
+          EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
         }
 
         // handle split complete to overwrite transferred in case it's not a
@@ -321,16 +439,15 @@ void rpc_interrupt_handle(
           #endif
         }
 
-        // set previous state to current state
-        entry->previous_status = entry->status;
+        if ( DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT != entry->status ) {
+          // set previous state to current state
+          entry->previous_status = entry->status;
+        }
 
         // handle halt without transfer complete by checking for possible complete
         bool switch_to_next_state = false;
         // handle halt / complete
-        if (
-          ( cipt & HCD_CHANNEL_INTERRUPT_HALT )
-          || ( cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE )
-        ) {
+        if ( channel_halted || transfer_complete ) {
           // handle finished
           if (
             // treat setup status with transfer complete as done
@@ -417,6 +534,12 @@ void rpc_interrupt_handle(
           entry->poll_state = DWHCI_CHANNEL_STATE_DATA0 == entry->poll_state
             ? DWHCI_CHANNEL_STATE_DATA1 : DWHCI_CHANNEL_STATE_DATA0;
         }
+        if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
+          // reset status by previous status since we waited for channel to halt
+          entry->status = DWHCI_QUEUE_CHANNEL_STATUS_SETUP;
+          // reset error
+          entry->error = LIBUSB_TRANSFER_ERROR_NO_ERROR;
+        }
         // handle switch to next
         if ( switch_to_next_state ) {
           // evaluate next state
@@ -424,7 +547,11 @@ void rpc_interrupt_handle(
             case DWHCI_QUEUE_CHANNEL_STATUS_SETUP:
               entry->packets_to_transfer = 0;
               entry->packet_size = 0;
-              entry->status = DWHCI_QUEUE_CHANNEL_STATUS_DATA;
+              const usb_control_message_t* entry_data = entry->data;
+              // set next status depending on buffer length
+              entry->status = entry_data->buffer_length
+                ? DWHCI_QUEUE_CHANNEL_STATUS_DATA
+                : DWHCI_QUEUE_CHANNEL_STATUS_ACK;
               break;
             case DWHCI_QUEUE_CHANNEL_STATUS_DATA:
               entry->packets_to_transfer = 0;
@@ -452,6 +579,10 @@ void rpc_interrupt_handle(
         }
         // continue with new step
         dwhci_channel_async_continue( entry );
+        // print cipt
+        #if defined( DWHCI_ENABLE_DEBUG )
+          EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+        #endif
       }
       // assign channel
       channel_mask <<= 1;

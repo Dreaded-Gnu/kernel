@@ -17,7 +17,6 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
 #include "lib/stdlib.h"
 #include "lib/string.h"
 #include "lib/inttypes.h"
@@ -34,8 +33,8 @@
 static event_manager_t* event = nullptr;
 
 /**
+ * @fn int32_t compare_event_callback(const avl_node_t*, const avl_node_t*)
  * @brief Compare event callback necessary for avl tree
- *
  * @param a node a
  * @param b node b
  * @return int32_t
@@ -47,7 +46,6 @@ static int32_t compare_event_callback(
   // get blocks
   const event_block_t* block_a = EVENT_GET_BLOCK( a );
   const event_block_t* block_b = EVENT_GET_BLOCK( b );
-
   // -1 if address of a->type is greater than address of b->type
   if ( block_a->type > block_b->type ) {
     return -1;
@@ -55,12 +53,12 @@ static int32_t compare_event_callback(
   } else if ( block_b->type > block_a->type ) {
     return 1;
   }
-
   // equal => return 0
   return 0;
 }
 
 /**
+ * @fn bool event_init( void )
  * @brief Method to setup event system
  * @return true
  * @return false
@@ -78,7 +76,6 @@ bool event_init( void ) {
   #if defined( PRINT_EVENT )
     DEBUG_OUTPUT( "Initialized event manager structure at %p\r\n", event )
   #endif
-
   // create tree
   event->tree = avl_create_tree( compare_event_callback, nullptr, nullptr );
   // debug output
@@ -90,45 +87,20 @@ bool event_init( void ) {
     free( event );
     return false;
   }
-
-  // create queue
-  event->queue_kernel = list_construct( nullptr, nullptr, nullptr );
-  // debug output
-  #if defined( PRINT_EVENT )
-    DEBUG_OUTPUT( "Created kernel queue at: %p\r\n", event->queue_kernel )
-  #endif
-  // check
-  if ( ! event->queue_kernel ) {
-    avl_destroy_tree( event->tree );
-    free( event );
-    return false;
-  }
-
-  event->queue_user = list_construct( nullptr, nullptr, nullptr );
-  // debug output
-  #if defined( PRINT_EVENT )
-    DEBUG_OUTPUT( "Created user queue at: %p\r\n", event->queue_user )
-  #endif
-  // check
-  if ( ! event->queue_user ) {
-    free( event->tree );
-    avl_destroy_tree( event->tree );
-    free( event );
-    return false;
-  }
+  // return success
   return true;
 }
 
 /**
+ * @fn bool event_bind(event_type_t, event_callback_t, bool)
  * @brief Bind event callback
- *
  * @param type event type
  * @param callback callback to bind
  * @param post post callback mapping
  * @return true on success
  * @return false on error
  */
-bool event_bind( event_type_t type, event_callback_t callback, bool post ) {
+bool event_bind( const event_type_t type, const event_callback_t callback, const bool post ) {
   // do nothing if not initialized
   if ( ! event ) {
     return true;
@@ -208,8 +180,7 @@ bool event_bind( event_type_t type, event_callback_t callback, bool post ) {
   // loop through list for check callback
   while ( current ) {
     // get callback from data
-    event_callback_wrapper_t* wrapper =
-      ( event_callback_wrapper_t* )current->data;
+    auto wrapper = ( event_callback_wrapper_t* )current->data;
     // debug output
     #if defined( PRINT_EVENT )
       DEBUG_OUTPUT( "Check bound callback at %p\r\n", wrapper )
@@ -250,8 +221,8 @@ bool event_bind( event_type_t type, event_callback_t callback, bool post ) {
 }
 
 /**
+ * @fn void event_unbind(event_type_t, event_callback_t, bool)
  * @brief Unbind event if existing
- *
  * @param type event type
  * @param callback bound callback
  * @param post post callback
@@ -260,9 +231,9 @@ bool event_bind( event_type_t type, event_callback_t callback, bool post ) {
  * @todo check whether avl removal is enough as logic for this function
  */
 void event_unbind(
-  [[maybe_unused]] event_type_t type,
-  [[maybe_unused]] event_callback_t callback,
-  [[maybe_unused]] bool post
+  [[maybe_unused]] const event_type_t type,
+  [[maybe_unused]] const event_callback_t callback,
+  [[maybe_unused]] const bool post
 ) {
   // do nothing if not initialized
   if ( ! event ) {
@@ -273,31 +244,22 @@ void event_unbind(
 }
 
 /**
+ * @fn void event_enqueue(const event_type_t type )
  * @brief Enqueue event
- *
  * @param type type to enqueue
- * @param origin event origin
- * @return true
- * @return false
  */
-bool event_enqueue( const event_type_t type, const event_origin_t origin ) {
+void event_enqueue( const event_type_t type ) {
   // do nothing if not initialized
   if ( ! event ) {
-    return true;
+    return;
   }
-
-  // push back event
-  return list_push_back_data(
-    EVENT_ORIGIN_KERNEL == origin
-      ? event->queue_kernel
-      : event->queue_user,
-    ( void* )type
-  );
+  // mark event as queued
+  event->queue_bitmap |= ( 1U << type );
 }
 
 /**
+ * @fn void event_handle(void*)
  * @brief Handle enqueued events with data
- *
  * @param data data to pass through
  */
 void event_handle( void* data ) {
@@ -305,53 +267,39 @@ void event_handle( void* data ) {
   if ( ! event ) {
     return;
   }
-
   // debug output
   #if defined( PRINT_EVENT )
     DEBUG_OUTPUT( "Enter event_handle( %p )\r\n", data )
   #endif
-
   // determine origin
-  event_origin_t origin = EVENT_DETERMINE_ORIGIN( data );
+  const event_origin_t origin = EVENT_DETERMINE_ORIGIN( data );
   // debug output
   #if defined( PRINT_EVENT )
     DEBUG_OUTPUT( "origin = %d\r\n", origin )
   #endif
-  // queue to use
-  list_manager_t* queue = EVENT_ORIGIN_KERNEL == origin
-    ? event->queue_kernel
-    : event->queue_user;
+  // get bitmap
+  uint32_t bitmap = event->queue_bitmap;
+  // duplicate for post calls
+  uint32_t post_bitmap = bitmap;
   // debug output
   #if defined( PRINT_EVENT )
-    DEBUG_OUTPUT( "queue = %p\r\n", queue )
+    DEBUG_OUTPUT( "bitmap = %#"PRIx32"\r\n", bitmap )
   #endif
-
-  // variables
-  void* current_event = list_pop_front_data( queue );
-  // get correct tree to use
-  avl_tree_t* tree = event->tree;
-
-  while ( current_event ) {
-    // try to find node
-    avl_node_t* node = avl_find_by_data( tree, current_event );
-    event_block_t* block;
-    // debug output
-    #if defined( PRINT_EVENT )
-      DEBUG_OUTPUT( "Found node %p\r\n", node )
-    #endif
-
-    // handle no existing
+  // execute regular events
+  while ( bitmap ) {
+    auto const type = ( event_type_t )__builtin_ctz( bitmap );
+    // get type node
+    avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
     if ( ! node ) {
-      // pop next
-      current_event = list_pop_front_data( queue );
+      // mask bit
+      bitmap &= ( type - 1 );
+      event->queue_bitmap = bitmap;
       // skip rest
       continue;
     }
-    // get block
-    block = EVENT_GET_BLOCK( node );
-
+    auto const block = EVENT_GET_BLOCK( node );
     // get first element of normal callback list
-    list_item_t* current = block->handler->first;
+    auto current = block->handler->first;
     // debug output
     #if defined( PRINT_EVENT )
       DEBUG_OUTPUT( "Used first normal element for looping at %p\r\n", current )
@@ -359,8 +307,7 @@ void event_handle( void* data ) {
     // loop through list
     while ( current ) {
       // get callback from data
-      event_callback_wrapper_t* wrapper =
-        ( event_callback_wrapper_t* )current->data;
+      auto const wrapper = ( event_callback_wrapper_t* )current->data;
       // debug output
       #if defined( PRINT_EVENT )
         DEBUG_OUTPUT( "Executing bound callback %p\r\n", wrapper )
@@ -370,9 +317,24 @@ void event_handle( void* data ) {
       // step to next
       current = current->next;
     }
-
+    // mask bit
+    bitmap &= ( type - 1 );
+    event->queue_bitmap = bitmap;
+  }
+  // execute post events
+  while ( post_bitmap ) {
+    auto const type = ( event_type_t )__builtin_ctz( post_bitmap );
+    // mask bit
+    post_bitmap &= ( type - 1 );
+    // get type node
+    avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
+    if ( ! node ) {
+      // skip rest
+      continue;
+    }
+    auto const block = EVENT_GET_BLOCK( node );
     // get first element of post callback list
-    current = block->post->first;
+    auto current = block->post->first;
     // debug output
     #if defined( PRINT_EVENT )
       DEBUG_OUTPUT( "Used first post element for looping at %p\r\n", current )
@@ -380,29 +342,23 @@ void event_handle( void* data ) {
     // loop through list
     while ( current ) {
       // get callback from data
-      event_callback_wrapper_t* wrapper =
-        ( event_callback_wrapper_t* )current->data;
+      auto const wrapper = ( event_callback_wrapper_t* )current->data;
       // debug output
       #if defined( PRINT_EVENT )
-        DEBUG_OUTPUT( "Executing bound callback %p\r\n", wrapper )
+        DEBUG_OUTPUT( "Executing bound post callback %p\r\n", wrapper )
       #endif
       // fire with data
       wrapper->callback( origin, data );
       // step to next
       current = current->next;
     }
-
-    // get next element
-    current_event = list_pop_front_data( queue );
   }
-
   // debug output
   #if defined( PRINT_EVENT )
     DEBUG_OUTPUT( "Leave event_handle\r\n" )
   #endif
-
-  // recursive call if not empty
-  if ( ! list_empty( queue ) ) {
+  // recheck bitmap for recursion, because handlers might trigger other events
+  if ( event->queue_bitmap ) {
     // debug output
     #if defined( PRINT_EVENT )
       DEBUG_OUTPUT( "Further outstanding events, recursive call!\r\n" )

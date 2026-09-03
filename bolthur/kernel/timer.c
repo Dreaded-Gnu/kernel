@@ -97,6 +97,11 @@ static bool timer_insert(
  * @param item
  */
 static void timer_cleanup( list_item_t* item ) {
+  // clear possible thread reference
+  const timer_callback_entry_t* entry = item->data;
+  if ( entry->interruptable ) {
+    entry->thread->interruptable_sleep_timer = nullptr;
+  }
   // free if data is valid
   if ( item->data ) {
     free( item->data );
@@ -169,6 +174,10 @@ timer_callback_entry_t* timer_register_callback(
     free( entry );
     return nullptr;
   }
+  // push to thread if interruptable
+  if ( interruptable ) {
+    thread->interruptable_sleep_timer = entry;
+  }
   // return structure
   return entry;
 }
@@ -184,6 +193,11 @@ bool timer_unregister_callback( const size_t id ) {
   list_item_t* item = list_lookup_data( timer_list, ( void* ) id );
   if ( ! item ) {
     return true;
+  }
+  // handle interruptable
+  const timer_callback_entry_t* entry = item->data;
+  if ( entry->interruptable ) {
+    entry->thread->interruptable_sleep_timer = nullptr;
   }
   // remove item
   return list_remove_item( timer_list, item, true );
@@ -265,33 +279,4 @@ void timer_handle_callback( void ) {
       // FIXME: remove 'rpc'
     }
   }
-}
-
-/**
- * @fn timer_callback_entry_t* timer_get_by_process_id(pid_t)
- * @brief Method to get possible timer by process id
- * @param pid process id to lookup
- * @return
- *
- * @todo change to get by thread
- */
-timer_callback_entry_t* timer_get_by_process_id( const pid_t pid ) {
-  // skip if list is empty
-  if ( list_empty( timer_list ) ) {
-    return nullptr;
-  }
-  // get current tick
-  auto current = timer_list->first;
-  // loop through handles
-  while( current ) {
-    // get entry
-    auto const entry = ( timer_callback_entry_t* )current->data;
-    // check for match
-    if ( entry->thread->process->id == pid && entry->interruptable ) {
-      return entry;
-    }
-    // switch to next
-    current = current->next;
-  }
-  return nullptr;
 }

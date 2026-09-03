@@ -26,9 +26,12 @@
 #include "../../library/collection/avl/avl.h"
 #include "../event.h"
 #include "state.h"
+#include "../timer.h"
 
 typedef struct task_process task_process_t;
 typedef struct task_priority_queue task_priority_queue_t;
+
+typedef struct rpc_backup rpc_backup_t;
 
 typedef struct  task_thread {
   /** current context */
@@ -57,6 +60,10 @@ typedef struct  task_thread {
   task_process_t* process;
   /** flag indicating thread is handling an interrupt */
   bool handling_interrupt;
+  /** interruptable sleep timer */
+  timer_callback_entry_t* interruptable_sleep_timer;
+  /** currently active rpc */
+  rpc_backup_t* current_active_backup;
 } task_thread_t;
 
 extern task_thread_t* task_thread_current_thread;
@@ -71,7 +78,7 @@ pid_t task_thread_generate_id( task_process_t* );
 avl_tree_t* task_thread_init( void );
 void task_thread_destroy( avl_tree_t* );
 task_thread_t* task_thread_create( uintptr_t, task_process_t*, size_t );
-task_thread_t* task_thread_fork( task_process_t*, task_thread_t* );
+task_thread_t* task_thread_fork( task_process_t*, const task_thread_t* );
 task_thread_t* task_thread_next( void );
 [[noreturn]] void task_thread_switch_to( uintptr_t );
 bool task_thread_push_arguments( const task_thread_t*, char**, char** );
@@ -79,7 +86,7 @@ void task_thread_cleanup( event_origin_t, void* );
 void task_thread_block( task_thread_t*, task_thread_state_t, task_state_data_t );
 void task_thread_unblock( task_thread_t*, task_thread_state_t, task_state_data_t );
 task_thread_t* task_thread_get_blocked( task_thread_state_t, task_state_data_t );
-void task_thread_kill( task_thread_t*, bool, void* );
+void task_thread_kill( task_thread_t*, bool );
 bool task_thread_is_ready( task_thread_t* );
 bool task_thread_is_active( task_thread_t* );
 void task_thread_set_state( task_thread_t*, task_thread_state_t );

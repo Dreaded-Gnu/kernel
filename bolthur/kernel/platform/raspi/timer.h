@@ -25,7 +25,8 @@
 // Timer match bits
 #define ARM_CORE0_TIMER_MATCH ( 1 << 3 )
 
-// timer interrupts
-#define ARM_CORE0_TIMER_INTERRUPT ( 1 << 3 )
+// timer interrupts => Above highest rpi interrupt to prevent timer invoke
+// on other interrupt
+#define ARM_CORE0_TIMER_INTERRUPT 64
 
 #endif

@@ -382,14 +382,12 @@ task_thread_t* task_thread_next( void ) {
 }
 
 /**
- * @fn void task_thread_kill(task_thread_t*, bool, void*)
+ * @fn void task_thread_kill(task_thread_t*, bool)
  * @brief Prepare kill of a thread
- *
  * @param thread thread to push to kill handling
  * @param schedule flag to indicate scheduling
- * @param context current valid context only necessary when schedule is true
  */
-void task_thread_kill( task_thread_t* thread, bool schedule, void* context ) {
+void task_thread_kill( task_thread_t* thread, const bool schedule ) {
   // debug output
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT(
@@ -403,7 +401,7 @@ void task_thread_kill( task_thread_t* thread, bool schedule, void* context ) {
   list_push_back_data( process_manager->thread_to_cleanup, thread->process );
   // trigger schedule if necessary
   if ( schedule ) {
-    event_enqueue( EVENT_PROCESS, EVENT_DETERMINE_ORIGIN( context ) );
+    event_enqueue( EVENT_PROCESS );
   }
 }
 
@@ -418,6 +416,9 @@ void task_thread_cleanup(
   [[maybe_unused]] event_origin_t origin,
   [[maybe_unused]] void* context
 ) {
+  if ( ! process_manager->thread_to_cleanup->first ) {
+    return;
+  }
   list_item_t* current = process_manager->thread_to_cleanup->first;
   // loop
   while ( current ) {

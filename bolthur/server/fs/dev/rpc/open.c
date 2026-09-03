@@ -66,6 +66,7 @@ void rpc_handle_open(
     free( request );
     return;
   }
+  EARLY_STARTUP_PRINT( "OPENING %s\r\n", request->path );
   // copy over stuff, return and free
   response.handle = 0;
   response.handler = handle->process;

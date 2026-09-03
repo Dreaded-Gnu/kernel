@@ -42,9 +42,7 @@ void vector_fast_interrupt_handler( cpu_register_context_t* cpu ) {
   // nesting
   nested_fast_interrupt++;
   assert( nested_fast_interrupt < INTERRUPT_NESTED_MAX )
-  // get event origin
-  const event_origin_t origin = EVENT_DETERMINE_ORIGIN( cpu );
-  // get context
+   // get context
   cpu = interrupt_get_context( cpu );
   // debug output
   #if defined( PRINT_EXCEPTION )
@@ -55,7 +53,7 @@ void vector_fast_interrupt_handler( cpu_register_context_t* cpu ) {
   // handle possible hardware interrupt
   interrupt_handle_possible( cpu, true );
   // enqueue cleanup
-  event_enqueue( EVENT_INTERRUPT_CLEANUP, origin );
+  event_enqueue( EVENT_INTERRUPT_CLEANUP );
   // decrement nested counter
   nested_fast_interrupt--;
 }

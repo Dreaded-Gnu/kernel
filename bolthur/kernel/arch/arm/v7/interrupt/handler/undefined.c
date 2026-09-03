@@ -71,10 +71,10 @@ void vector_undefined_instruction_handler( cpu_register_context_t* cpu ) {
       DEBUG_OUTPUT( "Undefined instruction within thread -> kill!\r\n" )
     #endif
     // kill thread and trigger scheduling
-    task_thread_kill( task_thread_current_thread, true, cpu );
+    task_thread_kill( task_thread_current_thread, true );
   }
   // enqueue cleanup
-  event_enqueue( EVENT_INTERRUPT_CLEANUP, origin );
+  event_enqueue( EVENT_INTERRUPT_CLEANUP );
   // decrement nested counter
   nested_undefined--;
 }

@@ -12,6 +12,7 @@ libkernel_la_SOURCES = \
   rpc/backup.c \
   rpc/data.c \
   rpc/generic.c \
+  rpc/pool.c \
   rpc/queue.c \
   mm/heap.c \
   mm/phys.c \

@@ -43,6 +43,7 @@
 #include "../../../../../library/platform/raspi/iomem/sequence.h"
 #include "../../../../../library/platform/raspi/iomem/mailbox.h"
 #include "../../../../../library/usb/usb.h"
+#include "../../iomem/barrier.h"
 
 /**
  * @brief file descriptor for iomem operations
@@ -55,7 +56,7 @@ int fd_iomem = -1;
 dwhci_configuration_t configuration;
 
 /**
- * @fn response_t dwhci_prepare_channel(uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, libusb_pipe_address_t*, uint32_t, bool, channel_queue_entry_t*)
+ * @fn response_t dwhci_prepare_channel(uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, libusb_pipe_address_t*, bool, channel_queue_entry_t*)
  * @brief Prepare channel for transfer
  * @param parent_device_number parent device number
  * @param port_number port number
@@ -63,7 +64,6 @@ dwhci_configuration_t configuration;
  * @param buffer_length buffer length
  * @param packet_id packet id
  * @param usb_pipe pipe to use
- * @param interval interval for interrupt polling
  * @param channel_prepared flag indicating whether channel is already prepared
  * @param entry queue entry itself
  * @return
@@ -75,7 +75,6 @@ response_t dwhci_prepare_channel(
   uint32_t buffer_length,
   const dwhci_channel_state_t packet_id,
   const libusb_pipe_address_t* usb_pipe,
-  uint32_t interval,
   const bool channel_prepared,
   channel_queue_entry_t* entry
 ) {
@@ -158,27 +157,16 @@ response_t dwhci_prepare_channel(
         entry->packet_size, entry->packets_to_transfer )
     #endif
   }
-  // interrupts are handled differently and block the channel permanently
-  if ( LIBUSB_TRANSFER_INTERRUPT == usb_pipe->type ) {
-    const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
-    const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
-    const uint32_t current_uframe = frame_number & 0x7;
-    const uint32_t current_linear_uframe = ( current_frame * 8 ) + current_uframe;
-
-    uint32_t uframe_interval = 8;
-    if ( LIBUSB_SPEED_HIGH != usb_pipe->speed ) {
-      uframe_interval = interval * 8;
-    } else {
-      uframe_interval = 1U << ( interval - 1 );
-    }
-
-    const uint32_t target_linear_uframe = current_linear_uframe + uframe_interval;
-
-    const uint32_t target_frame_number = target_linear_uframe / 8;
-
-    characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
-    characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame_number & 0x1 ? 1 : 0 );
-  }
+  // calculate target frame
+  const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+  const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
+  const uint32_t current_uframe = frame_number & 0x7;
+  const uint32_t current_linear_uframe = current_frame * 8 + current_uframe;
+  const uint32_t target_linear_uframe = current_linear_uframe + 1;
+  const uint32_t target_frame = ( target_linear_uframe / 8 ) & 0x7FF;
+  // unset and set odd frame depending on target frame
+  characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
+  characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame & 1 );
   // write characteristics
   mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ), characteristic );
   // write split ctrl
@@ -594,6 +582,7 @@ response_t dwhci_channel_send_async_start_channel( channel_queue_entry_t* entry 
   // debug output
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Starting async channel\r\n" )
+    EARLY_STARTUP_PRINT( "channel = %"PRIu8"\r\n", entry->channel )
   #endif
   mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ), mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ) ) | (
     HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
@@ -605,13 +594,18 @@ response_t dwhci_channel_send_async_start_channel( channel_queue_entry_t* entry 
   ) );
   mmio_write( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK, mmio_read( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK ) | 1U << entry->channel );
   entry->poll_ssplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+
+  entry->verify_char = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+  entry->verify_split = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( entry->channel ) );
+  entry->verify_size = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_XFER_SIZE( entry->channel ) );
+  entry->verify_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+
   mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), (
     ( mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) ) & ~HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 ) ) |
       HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 )
   ) );
   // debug output
   #if defined( DWHCI_ENABLE_DEBUG )
-    EARLY_STARTUP_PRINT( "channel = %"PRIu8"\r\n", entry->channel )
     EARLY_STARTUP_PRINT( "Done\r\n" )
   #endif
   // return success
@@ -625,7 +619,7 @@ response_t dwhci_channel_send_async_start_channel( channel_queue_entry_t* entry 
  * @param free_channel free da channel
  * @return
  */
-response_t dwhci_channel_send_async_stop_channel( const channel_queue_entry_t* entry, const bool free_channel ) {
+response_t dwhci_channel_send_async_stop_channel( channel_queue_entry_t* entry, const bool free_channel ) {
   // debug output
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Stopping channel via mmio sequence\r\n" )
@@ -642,9 +636,38 @@ response_t dwhci_channel_send_async_stop_channel( const channel_queue_entry_t* e
     }
   }
   // start stop channel by setting enable and disable
-  uint32_t characteristics = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
-  characteristics |= HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 ) | HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
-  mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristics );
+  if (
+    (
+      ! ( entry->transfer_status & LIBUSB_TRANSFER_ERROR_HALT )
+      || DWHCI_QUEUE_CANCEL == entry->status
+    ) && ! free_channel
+  ) {
+    //#if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Channel not halted, halting now: %#x / %d\r\n", entry->transfer_status, entry->channel )
+      EARLY_STARTUP_PRINT( "Status = %d\r\n", entry->status )
+    //#endif
+    // enable interrupts in mask
+    mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ), (
+      HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
+      | HCD_CHANNEL_INTERRUPT_HALT
+      | HCD_CHANNEL_INTERRUPT_ERROR_MASK
+      | HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT
+      | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+      | HCD_CHANNEL_INTERRUPT_NOT_YET
+    ) );
+    // enable channel interrupt
+    mmio_write( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK, mmio_read( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK ) | 1U << entry->channel );
+    // read characteristics and set enable / disable
+    mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) ) | (
+      HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 ) | HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 ) ) );
+    // set status to wait for halt if not freeing the channel
+    if ( DWHCI_QUEUE_CANCEL != entry->status ) {
+      // save current status as previous status
+      entry->previous_status = entry->status;
+      // set to wait for halt
+      entry->status = DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT;
+    }
+  }
   // free channel if set
   if ( free_channel ) {
     // free allocated channel
@@ -674,6 +697,9 @@ response_t dwhci_channel_send_async_setup( channel_queue_entry_t* entry ) {
     EARLY_STARTUP_PRINT( "Starting setup request: %"PRIu32"\r\n",
       entry->buffer_offset )
   #endif
+  // reset transfer status
+  entry->previous_transfer_status = entry->transfer_status;
+  entry->transfer_status = 0;
   const usb_control_message_t* entry_data = entry->data;
   // create temporary pipe
   const libusb_pipe_address_t setup_pipe = {
@@ -717,7 +743,6 @@ response_t dwhci_channel_send_async_setup( channel_queue_entry_t* entry ) {
     sizeof( libusb_device_request_t ) - entry->buffer_offset,
     DWHCI_CHANNEL_STATE_SETUP,
     &setup_pipe,
-    0,
     false,
     entry
   );
@@ -745,18 +770,26 @@ response_t dwhci_channel_send_async_data( channel_queue_entry_t* entry ) {
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Starting data request\r\n" )
   #endif
-  const usb_control_message_t* entry_data = entry->data;
-  // handle no data to transmit or receive
-  if (0 == entry_data->buffer_length ) {
+  // halt channel if necessary
+  response_t result = dwhci_channel_send_async_stop_channel( entry, false );
+  // handle error
+  if ( HCD_RESPONSE_OK != result ) {
     // debug output
     #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "No data to send continue with ack\r\n" )
+      EARLY_STARTUP_PRINT( "Unable to prepare dma for channel\r\n" )
     #endif
-    // switch to next state
-    entry->status = DWHCI_QUEUE_CHANNEL_STATUS_ACK;
-    // continue directly
-    return dwhci_channel_async_continue( entry );
+    // return result
+    return result;
   }
+  // handle channel in wait for halt
+  if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
+    // return success
+    return HCD_RESPONSE_OK;
+  }
+  // reset transfer status
+  entry->previous_transfer_status = entry->transfer_status;
+  entry->transfer_status = 0;
+  const usb_control_message_t* entry_data = entry->data;
   // handle out
   if ( LIBUSB_DIRECTION_OUT == entry_data->pipe_address.direction ) {
     memcpy( entry->buffer, entry_data->buffer, entry_data->buffer_length );
@@ -773,7 +806,7 @@ response_t dwhci_channel_send_async_data( channel_queue_entry_t* entry ) {
   // set buffer size
   entry->buffer_size_to_transfer = entry_data->buffer_length - entry->buffer_offset;
   // prepare dma
-  response_t result = dwhci_channel_prepare_dma( entry );
+  result = dwhci_channel_prepare_dma( entry );
   // handle error
   if ( HCD_RESPONSE_OK != result ) {
     // debug output
@@ -791,7 +824,6 @@ response_t dwhci_channel_send_async_data( channel_queue_entry_t* entry ) {
     entry_data->buffer_length - entry->buffer_offset,
     entry->channel_data_state,
     &data_pipe,
-    0,
     false,
     entry
   );
@@ -855,6 +887,25 @@ response_t dwhci_channel_send_async_ack( channel_queue_entry_t* entry ) {
       entry_data->last_transfer = entry_data->buffer_length;
     }
   }
+  // halt channel if necessary
+  response_t result = dwhci_channel_send_async_stop_channel( entry, false );
+  // handle error
+  if ( HCD_RESPONSE_OK != result ) {
+    // debug output
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Unable to prepare dma for channel\r\n" )
+    #endif
+    // return result
+    return result;
+  }
+  // handle channel in wait for halt
+  if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
+    // return success
+    return HCD_RESPONSE_OK;
+  }
+  // reset transfer status
+  entry->previous_transfer_status = entry->transfer_status;
+  entry->transfer_status = 0;
   // create temporary pipe
   const libusb_pipe_address_t ack_pipe = {
     .speed = entry_data->pipe_address.speed,
@@ -862,17 +913,14 @@ response_t dwhci_channel_send_async_ack( channel_queue_entry_t* entry ) {
     .end_point = entry_data->pipe_address.end_point,
     .max_size = entry_data->pipe_address.max_size,
     .type = LIBUSB_TRANSFER_CONTROL,
-    .direction = entry_data->buffer_length == 0
-      || entry_data->pipe_address.direction == LIBUSB_DIRECTION_OUT
+    .direction = entry_data->pipe_address.direction == LIBUSB_DIRECTION_OUT
         ? LIBUSB_DIRECTION_IN
         : LIBUSB_DIRECTION_OUT,
   };
-  // push request into data buffer
-  memcpy( entry->buffer, &entry_data->request, sizeof( libusb_device_request_t ) );
   // set buffer size
   entry->buffer_size_to_transfer = 0;
   // prepare dma
-  response_t result = dwhci_channel_prepare_dma( entry );
+  result = dwhci_channel_prepare_dma( entry );
   // handle error
   if ( HCD_RESPONSE_OK != result ) {
     // debug output
@@ -890,7 +938,6 @@ response_t dwhci_channel_send_async_ack( channel_queue_entry_t* entry ) {
     0,
     DWHCI_CHANNEL_STATE_DATA1,
     &ack_pipe,
-    0,
     false,
     entry
   );
@@ -935,6 +982,53 @@ response_t dwhci_channel_send_async_done( channel_queue_entry_t* entry ) {
       EARLY_STARTUP_PRINT( "Warning non zero status transfer: %"PRIu32"\r\n", entry->transferred )
     #endif
   }
+  // stop transmission
+  const response_t result = dwhci_channel_send_async_stop_channel( entry, false );
+  if ( HCD_RESPONSE_OK != result ) {
+    // debug output
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Unable to stop channel\r\n")
+    #endif
+    // return result
+    return result;
+  }
+  if ( DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT == entry->status ) {
+    // set previous state to done halt
+    entry->previous_status = DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT;
+    // debug output
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Waiting for channel stop\r\n")
+    #endif
+    // return result
+    return HCD_RESPONSE_OK;
+  }
+  // reset transfer status
+  entry->previous_transfer_status = entry->transfer_status;
+  entry->transfer_status = 0;
+  // force halt done
+  entry->status = DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT;
+  // continue with halt
+  return dwhci_channel_async_continue( entry );
+}
+
+/**
+ * @fn response_t dwhci_channel_send_async_done_halt(channel_queue_entry_t*)
+ * @brief done halt callback either called directly or after channel halt
+ * @param entry
+ * @return
+ */
+response_t dwhci_channel_send_async_done_halt( channel_queue_entry_t* entry ) {
+  // free channel
+  response_t result = dwhci_channel_send_async_stop_channel( entry, true );
+  // handle error
+  if ( HCD_RESPONSE_OK != result ) {
+    // debug output
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Unable to stop channel\r\n")
+    #endif
+    // return result
+    return result;
+  }
   auto const message = ( usbd_control_message_t* )entry->message;
   auto const entry_data = ( usb_control_message_t* )entry->data;
   // handle timer
@@ -953,16 +1047,6 @@ response_t dwhci_channel_send_async_done( channel_queue_entry_t* entry ) {
     #endif
     // return error
     return HCD_RESPONSE_ERROR_IO;
-  }
-  // stop transmission
-  response_t result = dwhci_channel_send_async_stop_channel( entry, true );
-  if ( HCD_RESPONSE_OK != result ) {
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "Unable to stop channel\r\n")
-    #endif
-    // return result
-    return result;
   }
   // debug output
   #if defined( DWHCI_ENABLE_DEBUG )
@@ -1019,20 +1103,16 @@ response_t dwhci_channel_send_async_done( channel_queue_entry_t* entry ) {
   return dwhci_continue_next( nullptr );
 }
 
+
 /**
- * @fn response_t dwhci_channel_send_cancel(const channel_queue_entry_t*)
+ * @fn response_t dwhci_channel_send_cancel(channel_queue_entry_t*)
  * @brief initiates cancellation of entry
  * @param entry
  * @return
  */
-response_t dwhci_channel_send_cancel( const channel_queue_entry_t* entry ) {
+response_t dwhci_channel_send_cancel( channel_queue_entry_t* entry ) {
   // handle not correct status
-  if (
-    entry->status != DWHCI_QUEUE_CHANNEL_STATUS_SETUP
-    && entry->status != DWHCI_QUEUE_CHANNEL_STATUS_DATA
-    && entry->status != DWHCI_QUEUE_CHANNEL_STATUS_ACK
-    && entry->status != DWHCI_QUEUE_POLL_STATUS_DATA
-  ) {
+  if ( entry->status != DWHCI_QUEUE_CANCEL ) {
     return HCD_RESPONSE_ERROR_EINVAL;
   }
   // stop transmission
@@ -1142,6 +1222,8 @@ response_t dwhci_channel_async_continue( channel_queue_entry_t* entry ) {
       return dwhci_channel_send_async_ack( entry );
     case DWHCI_QUEUE_CHANNEL_STATUS_DONE:
       return dwhci_channel_send_async_done( entry );
+    case DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT:
+      return dwhci_channel_send_async_done_halt( entry );
     // polling related
     case DWHCI_QUEUE_POLL_STATUS_DATA:
       return dwhci_channel_poll_async_data( entry );
@@ -1269,17 +1351,6 @@ response_t dwhci_channel_poll_async_data( channel_queue_entry_t* entry ) {
     EARLY_STARTUP_PRINT( "Starting data request\r\n" )
   #endif
   const usb_interrupt_poll_t* entry_data = entry->data;
-  // handle no data to transmit or receive
-  if ( 0 == entry_data->buffer_length ) {
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "No data to send continue with ack\r\n" )
-    #endif
-    // switch to next state
-    entry->status = DWHCI_QUEUE_CHANNEL_STATUS_ACK;
-    // continue directly
-    return dwhci_channel_async_continue( entry );
-  }
   // handle out
   if ( LIBUSB_DIRECTION_OUT == entry_data->pipe_address.direction ) {
     memcpy( entry->buffer, entry_data->buffer, entry_data->buffer_length );
@@ -1312,7 +1383,6 @@ response_t dwhci_channel_poll_async_data( channel_queue_entry_t* entry ) {
     entry_data->buffer_length - entry->buffer_offset,
     entry->poll_state,
     &data_pipe,
-    entry_data->interval,
     entry->prepared,
     entry
   );
@@ -1717,7 +1787,7 @@ response_t dwhci_continue_next( channel_queue_entry_t* current ) {
     // set channel of out
     out->channel = channel;
     // enable channel interrupt for setup commands
-    if ( DWHCI_QUEUE_POLL_STATUS_PENDING != current->status ) {
+    if ( current && DWHCI_QUEUE_POLL_STATUS_PENDING != current->status ) {
       // enable channel interrupt
       result = dwhci_enable_channel_interrupt( channel );
       // handle error

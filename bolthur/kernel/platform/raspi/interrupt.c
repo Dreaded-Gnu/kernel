@@ -186,89 +186,69 @@ void interrupt_unmask_specific( const int8_t num ) {
 }
 
 /**
- * @fn int8_t interrupt_get_pending(bool)
- * @brief Get pending interrupt
- *
- * @param fast use fast interrupts
- * @return int8_t pending interrupt number
+ * @fn void interrupt_handle_possible(void*, bool)
+ * @brief Method to enqueue possible interrupt handler
+ * @param context
+ * @param fast
  */
-int8_t interrupt_get_pending( const bool fast ) {
-  // local cpu interrupt handling
-  #if defined( BCM2709 ) || defined( BCM2710 )
-    // get source
-    const uint32_t source = io_in32( peripheral_base_get( PERIPHERAL_LOCAL ) + 0x60 );
-    // handle not fast and timer match
-    if ( ! fast && source & ARM_CORE0_TIMER_MATCH ) {
-        return ARM_CORE0_TIMER_INTERRUPT;
-    }
-    // handle gpu interrupt
-    if ( source & 1 << 8 ) {
-      const uintptr_t base = ( uint32_t )peripheral_base_get( PERIPHERAL_GPIO );
-      // normal interrupt
-      if ( ! fast ) {
-        const uint32_t pending1 = io_in32( base + INTERRUPT_IRQ_PENDING_1 ) &
-          io_in32( base + INTERRUPT_ENABLE_IRQ_1 );
-        const uint32_t pending2 = io_in32( base + INTERRUPT_IRQ_PENDING_2 ) &
-          io_in32( base + INTERRUPT_ENABLE_IRQ_2 );
-
-        for ( int8_t i = 0; i < 32; ++i ) {
-          const uint32_t check_bit = ( 1U << i );
-
-          // check first pending register
-          if ( pending1 & check_bit ) {
-            return i;
-          }
-
-          // check second pending register
-          if ( pending2 & check_bit ) {
-            return ( int8_t )( i + 32 );
-          }
-        }
-        // fast interrupt handling
-      } else {
-        // get set interrupt
-        uint32_t interrupt = io_in32( base + INTERRUPT_FIQ_CONTROL );
-        // get only number
-        interrupt &= 0x7f;
-        // return interrupt
-        return ( int8_t )interrupt;
-      }
-    }
-  #else
+void interrupt_handle_possible( void* context, const bool fast ) {
+  // get source
+  const uint32_t source = io_in32( peripheral_base_get( PERIPHERAL_LOCAL ) + 0x60 );
+  // handle not fast and timer match
+  if ( ! fast && source & ARM_CORE0_TIMER_MATCH ) {
+    interrupt_handle(
+      ARM_CORE0_TIMER_INTERRUPT,
+      INTERRUPT_NORMAL,
+      context,
+      true
+    );
+  }
+  // handle gpu interrupt
+  if ( source & 1 << 8 ) {
     const uintptr_t base = ( uint32_t )peripheral_base_get( PERIPHERAL_GPIO );
     // normal interrupt
     if ( ! fast ) {
-      const uint32_t pending1 = io_in32( base + INTERRUPT_IRQ_PENDING_1 ) &
+      uint32_t pending1 = io_in32( base + INTERRUPT_IRQ_PENDING_1 ) &
         io_in32( base + INTERRUPT_ENABLE_IRQ_1 );
-      const uint32_t pending2 = io_in32( base + INTERRUPT_IRQ_PENDING_2 ) &
+      uint32_t pending2 = io_in32( base + INTERRUPT_IRQ_PENDING_2 ) &
         io_in32( base + INTERRUPT_ENABLE_IRQ_2 );
-
-      for ( int8_t i = 0; i < 32; ++i ) {
-        const uint32_t check_bit = ( 1U << i );
-
-        // check first pending register
-        if ( pending1 & check_bit ) {
-          return i;
-        }
-
-        // check second pending register
-        if ( pending2 & check_bit ) {
-          return ( int8_t )( i + 32 );
-        }
+      // handle pending 1
+      while ( pending1 ) {
+        const int interrupt_number = __builtin_ctz( pending1 );
+        interrupt_handle(
+          ( size_t )interrupt_number,
+          INTERRUPT_NORMAL,
+          context,
+          true
+        );
+        pending1 &= ( ( uint32_t )interrupt_number - 1 );
       }
-      // fast interrupt handling
+      // handle pending 2
+      while ( pending2 ) {
+        const int interrupt_number = __builtin_ctz( pending2 );
+        interrupt_handle(
+          ( size_t )interrupt_number + 32,
+          INTERRUPT_NORMAL,
+          context,
+          true
+        );
+        pending2 &= ( ( uint32_t )interrupt_number - 1 );
+      }
+    // fast interrupt handling
     } else {
       // get set interrupt
-      uint32_t interrupt = io_in32( base + INTERRUPT_FIQ_CONTROL );
+      uint32_t interrupt_number = io_in32( base + INTERRUPT_FIQ_CONTROL );
       // get only number
-      interrupt &= 0x7f;
-      // return interrupt
-      return ( int8_t )interrupt;
+      interrupt_number &= 0x7f;
+      // handle interrupt
+      interrupt_handle(
+        ( size_t )interrupt_number,
+        INTERRUPT_FAST,
+        context,
+        true
+      );
     }
-  #endif
-
-  // return no interrupt
-  return -1;
+  }
 }
 
 /**

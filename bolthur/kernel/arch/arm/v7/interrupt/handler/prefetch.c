@@ -89,7 +89,7 @@ void vector_prefetch_abort_handler( cpu_register_context_t* cpu ) {
   // special debug exception handling
   #if defined( REMOTE_DEBUG )
     if ( debug_is_debug_exception() ) {
-      event_enqueue( EVENT_DEBUG, origin );
+      event_enqueue( EVENT_DEBUG );
     } else {
       PANIC( "prefetch abort" )
     }
@@ -97,7 +97,7 @@ void vector_prefetch_abort_handler( cpu_register_context_t* cpu ) {
     PANIC( "prefetch abort!" )
   #endif
   // enqueue cleanup
-  event_enqueue( EVENT_INTERRUPT_CLEANUP, origin );
+  event_enqueue( EVENT_INTERRUPT_CLEANUP );
   // decrement nested counter
   nested_prefetch_abort--;
 }

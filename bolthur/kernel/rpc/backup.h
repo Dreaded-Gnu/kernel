@@ -24,7 +24,7 @@
 #include "../task/process.h"
 #include "../task/thread.h"
 
-typedef struct {
+typedef struct rpc_backup {
   /** cpu context */
   void* context;
   /** rpc data id */
@@ -62,10 +62,12 @@ typedef struct {
   bool is_interrupt;
   /** timer flag */
   bool is_timer;
+  /** squeezed in rpc */
+  bool squeezed_in;
+  /** padding to get to a size of 64 byte */
+  struct rpc_backup* next;
 } rpc_backup_t;
 
-rpc_backup_t* rpc_backup_get_active( task_thread_t*, size_t );
-rpc_backup_t* rpc_backup_get_next_possible_active( const task_thread_t* );
 rpc_backup_t* rpc_backup_create( task_thread_t*, const task_process_t*, size_t, const void*, size_t, task_thread_t*, bool, size_t, bool, bool, bool );
 void rpc_backup_destroy( rpc_backup_t* );
 

@@ -93,11 +93,14 @@ void rpc_handle_boot_init(
     #endif
     exit( 1 );
   }
+  #if defined( DEV_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Done\r\n" )
+  #endif
 
   // FIXME: ROUTE THROUGH TO CHILD PROCESSES
 
   // return success
-  response.result = 0;
+  memset( &response, 0, sizeof( response ) );
   bolthur_rpc_return( type, &response, sizeof( response ), nullptr, 0 );
   free( request );
 }

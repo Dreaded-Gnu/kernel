@@ -67,6 +67,7 @@ uint32_t mmio_read(const uintptr_t address ) {
   auto volatile const read_begin = ( void* )( ( uintptr_t )mmio_start + address );
   // barrier
   barrier_dmb();
+  barrier_dsb();
   // read word
   return *( volatile uint32_t* )read_begin;
 }
@@ -83,6 +84,8 @@ void mmio_write(const uintptr_t address, const uint32_t data ) {
   auto volatile const write_begin = ( void* )( ( uintptr_t )mmio_start + address );
   // barrier, write and barrier
   barrier_dmb();
+  barrier_dsb();
   *( volatile uint32_t* )write_begin  = data;
   barrier_dmb();
+  barrier_dsb();
 }

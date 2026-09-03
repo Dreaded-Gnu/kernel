@@ -69,7 +69,6 @@ typedef struct interrupt_callback_wrapper interrupt_callback_wrapper_t;
 #define INTERRUPT_GET_BLOCK( n ) \
   ( interrupt_block_t* )( ( uint8_t* )n - offsetof( interrupt_block_t, node ) )
 
-int8_t interrupt_get_pending( bool );
 void interrupt_toggle( interrupt_toggle_state_t );
 void interrupt_disable( void );
 void interrupt_enable( void );

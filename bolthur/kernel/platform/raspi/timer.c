@@ -99,7 +99,7 @@ static void timer_control( uint32_t control ) {
  *
  * @param context
  */
-static void timer_clear( void* context ) {
+static void timer_clear( [[maybe_unused]] void* context ) {
   timer_control( 3 );
   // debug output
   #if defined( PRINT_TIMER )
@@ -113,7 +113,7 @@ static void timer_clear( void* context ) {
   // handle timers
   timer_handle_callback();
   // trigger timer event
-  event_enqueue( EVENT_PROCESS, EVENT_DETERMINE_ORIGIN( context ) );
+  event_enqueue( EVENT_PROCESS );
 }
 
 /**
@@ -178,4 +178,15 @@ size_t timer_get_interval( void ) {
  */
 size_t timer_get_tick( void ) {
   return timer_tick_count;
+}
+
+/**
+ * @fn uint64_t timer_get_current_tick_value( void )
+ * @brief Method to get current tick value
+ * @return
+ */
+uint64_t timer_get_current_tick_value( void ) {
+  uint32_t low, high;
+  __asm__ __volatile__( "mrrc p15, 1, %0, %1, c14" : "=r" ( low ), "=r" ( high ) );
+  return ( ( uint64_t ) high << 32 ) | low;
 }

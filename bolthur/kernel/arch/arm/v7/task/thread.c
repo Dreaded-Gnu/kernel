@@ -121,7 +121,7 @@ task_thread_t* task_thread_create(
   // set content
   current_context->reg.pc = ( uint32_t )entry & ~1U;
   // only user mode threads are possible
-  current_context->reg.spsr = /*0x60000000 |*/ CPSR_MODE_USER;
+  current_context->reg.spsr = CPSR_MODE_USER;
   // add arm thumb mode to spsr if necessary
   if ( ( uint32_t )entry & 0x1 ) {
     // add thumb mode to spsr
@@ -226,6 +226,16 @@ task_thread_t* task_thread_create(
     return nullptr;
   }
 
+  // push back into free list
+  if ( ! list_push_back_data( process->free_thread_list, thread ) ) {
+    avl_remove_by_node( process->thread_manager, &thread->node_id );
+    task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
+    virt_unmap_address( process->virtual_context, stack_virtual, true );
+    free( thread->current_context );
+    free( thread );
+    return nullptr;
+  }
+
   // get thread queue by priority
   task_priority_queue_t* queue = task_queue_get_queue(
     process_manager, priority );
@@ -255,7 +265,7 @@ task_thread_t* task_thread_create(
  */
 task_thread_t* task_thread_fork(
   task_process_t* forked_process,
-  task_thread_t* thread_to_fork
+  const task_thread_t* thread_to_fork
 ) {
   // reserve space for new management structure
   task_thread_t* thread = malloc( sizeof( *thread ) );
@@ -325,6 +335,17 @@ task_thread_t* task_thread_fork(
       thread->stack_virtual,
       thread->process->thread_stack_manager
     );
+    free( thread->current_context );
+    free( thread );
+    return nullptr;
+  }
+  // push back thread into free list
+  if ( ! list_push_back_data( thread->process->free_thread_list, thread ) ) {
+    task_stack_manager_remove(
+      thread->stack_virtual,
+      thread->process->thread_stack_manager
+    );
+    avl_remove_by_node( thread->process->thread_manager, &thread->node_id );
     free( thread->current_context );
     free( thread );
     return nullptr;

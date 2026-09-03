@@ -148,6 +148,10 @@ static void task_process_free( task_process_t* proc ) {
   if ( proc->thread_stack_manager ) {
     task_stack_manager_destroy( proc->thread_stack_manager );
   }
+  // destroy free thread list
+  if ( proc->free_thread_list ) {
+    list_destruct( proc->free_thread_list );
+  }
   // destroy rpc stuff
   rpc_generic_destroy( proc );
   // free finally structure itself
@@ -326,7 +330,7 @@ pid_t task_process_generate_id( void ) {
  * @param parent parent process id
  * @return
  */
-task_process_t* task_process_create( size_t priority, pid_t parent ) {
+task_process_t* task_process_create( const size_t priority, const pid_t parent ) {
   // check manager
   if ( ! process_manager ) {
     return nullptr;
@@ -362,10 +366,17 @@ task_process_t* task_process_create( size_t priority, pid_t parent ) {
     task_process_free( process );
     return nullptr;
   }
+  // setup free thread list
+  process->free_thread_list = list_construct( nullptr, nullptr, nullptr );
+  if ( ! process->free_thread_list ) {
+    task_process_free( process );
+    return nullptr;
+  }
+  // cache priority and parent
   process->priority = priority;
   process->parent = parent;
+  // create stack manager
   process->thread_stack_manager = task_stack_manager_create();
-  // handle error
   if ( ! process->thread_stack_manager ) {
     task_process_free( process );
     return nullptr;
@@ -396,7 +407,7 @@ task_process_t* task_process_create( size_t priority, pid_t parent ) {
  * @param thread_calling calling thread containing process information
  * @return forked process structure or nullptr
  */
-task_process_t* task_process_fork( task_thread_t* thread_calling ) {
+task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Allocate process structure\r\n" )
   #endif
@@ -414,6 +425,12 @@ task_process_t* task_process_fork( task_thread_t* thread_calling ) {
   #endif
   forked->thread_manager = task_thread_init();
   if ( ! forked->thread_manager ) {
+    task_process_free( forked );
+    return nullptr;
+  }
+  // setup free thread list
+  forked->free_thread_list = list_construct( nullptr, nullptr, nullptr );
+  if ( ! forked->free_thread_list ) {
     task_process_free( forked );
     return nullptr;
   }
@@ -488,7 +505,7 @@ task_process_t* task_process_fork( task_thread_t* thread_calling ) {
   avl_node_t* current = avl_iterate_first( proc->thread_manager );
   while ( current ) {
     // get thread
-    task_thread_t* thread = TASK_THREAD_GET_BLOCK( current );
+    auto const thread = TASK_THREAD_GET_BLOCK( current );
     // try to fork it
     if ( ! task_thread_fork( forked, thread ) ) {
       task_process_free( forked );
@@ -595,6 +612,9 @@ void task_process_cleanup(
   [[maybe_unused]] event_origin_t origin,
   [[maybe_unused]] void* context
 ) {
+  if ( ! process_manager->process_to_cleanup->first ) {
+    return;
+  }
   list_item_t* current = process_manager->process_to_cleanup->first;
   // loop
   while ( current ) {
@@ -772,13 +792,11 @@ task_process_t* task_process_get_by_id( pid_t pid ) {
 }
 
 /**
- * @fn void task_process_prepare_kill(void*, task_process_t*)
+ * @fn void task_process_prepare_kill(task_process_t*)
  * @brief Prepare process kill
- *
- * @param context
  * @param proc
  */
-void task_process_prepare_kill( void* context, task_process_t* proc ) {
+void task_process_prepare_kill( task_process_t* proc ) {
   // debug output
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Prepare kill of process %d\r\n", proc->id )
@@ -799,7 +817,7 @@ void task_process_prepare_kill( void* context, task_process_t* proc ) {
   // push process to clean up list
   list_push_back_data( process_manager->process_to_cleanup, proc );
   // trigger schedule and cleanup
-  event_enqueue( EVENT_PROCESS, EVENT_DETERMINE_ORIGIN( context ) );
+  event_enqueue( EVENT_PROCESS );
 }
 
 /**
@@ -852,22 +870,20 @@ static int map_replace_random( const size_t size ) {
 }
 
 /**
- * @fn int task_process_replace(task_process_t*, uintptr_t, const char**, const char**, void*)
+ * @fn int task_process_replace(task_process_t*, uintptr_t, const char**, const char**)
  * @brief Replace current process with elf image
  *
  * @param proc
  * @param elf
  * @param argv
  * @param env
- * @param context
  * @return
  */
 int task_process_replace(
   task_process_t* proc,
   const uintptr_t elf,
   const char** argv,
-  const char** env,
-  void* context
+  const char** env
 ) {
   const bool replace_current_thread = task_thread_current_thread->process == proc;
   #if defined( PRINT_PROCESS )
@@ -927,7 +943,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
 
@@ -936,7 +952,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
 
@@ -958,6 +974,13 @@ int task_process_replace(
     #endif
     task_stack_manager_destroy( proc->thread_stack_manager );
   }
+  // destroy free thread list
+  if ( proc->free_thread_list ) {
+    #if defined( PRINT_PROCESS )
+      DEBUG_OUTPUT( "free_thread_list = %p\r\n", proc->free_thread_list )
+    #endif
+    list_destruct( proc->free_thread_list );
+  }
 
   // recreate thread manager and stack manager
   proc->thread_manager = task_thread_init();
@@ -965,7 +988,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
   proc->thread_stack_manager = task_stack_manager_create();
@@ -973,7 +996,16 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
+    return -ENOMEM;
+  }
+  // setup free thread list
+  proc->free_thread_list = list_construct( nullptr, nullptr, nullptr );
+  if ( ! proc->free_thread_list ) {
+    free( tmp_argv );
+    free( tmp_env );
+    unmap_replace_random( image_size );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
   // reset thread id counter
@@ -985,7 +1017,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
 
@@ -995,7 +1027,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
   #if defined( PRINT_PROCESS )
@@ -1010,7 +1042,7 @@ int task_process_replace(
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );
-    task_process_prepare_kill( context, proc );
+    task_process_prepare_kill( proc );
     return -ENOMEM;
   }
 
