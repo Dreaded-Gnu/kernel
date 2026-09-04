@@ -34,6 +34,7 @@
 #include "event.h"
 #include "task/process.h"
 #include "syscall.h"
+#include "cpu/pool.h"
 #if defined( REMOTE_DEBUG )
   #include "serial.h"
   #include "debug/gdb.h"
@@ -115,6 +116,10 @@ void kernel_main( void ) {
   // Setup rpc
   DEBUG_OUTPUT( "[bolthur/kernel -> rpc] initialize ...\r\n" )
   assert( rpc_generic_init() )
+
+  // Setup cpu pool
+  DEBUG_OUTPUT( "[bolthur/kernel -> cpu] initialize ...\r\n" )
+  cpu_pool_setup();
 
   // Setup system calls
   DEBUG_OUTPUT( "[bolthur/kernel -> syscall] initialize ...\r\n" )

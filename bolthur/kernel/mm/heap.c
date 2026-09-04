@@ -66,7 +66,7 @@ heap_init_state_t heap_get_state( void ) {
  *
  * @param state
  */
-void heap_init( heap_init_state_t state ) {
+void heap_init( const heap_init_state_t state ) {
   if (
     // check for invalid state
     (
@@ -99,7 +99,7 @@ void heap_init( heap_init_state_t state ) {
       assert( virt_map_address_random(
         virt_current_kernel_context,
         addr,
-        VIRT_MEMORY_TYPE_NORMAL_NC,
+        VIRT_MEMORY_TYPE_NORMAL,
         VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
       ) )
     }
@@ -480,7 +480,7 @@ void* heap_sbrk( intptr_t increment ) {
       if ( ! virt_map_address_random(
         virt_current_kernel_context,
         addr,
-        VIRT_MEMORY_TYPE_NORMAL_NC,
+        VIRT_MEMORY_TYPE_NORMAL,
         VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
       ) ) {
         #if defined( PRINT_MM_HEAP )

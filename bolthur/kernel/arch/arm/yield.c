@@ -22,6 +22,6 @@
 /**
  * @brief Yield processor abstraction
  */
-inline void yield( void ) {
+void yield( void ) {
   __asm__ __volatile__( "yield" ::: "memory" );
 }

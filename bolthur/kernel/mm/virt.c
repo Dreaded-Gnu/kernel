@@ -119,7 +119,7 @@ void virt_init( void ) {
     if (
       ( start >= phys_bss_start && start <= phys_bss_end ) ||
       ( start >= phys_data_start && start <= phys_data_end ) ) {
-      type = VIRT_MEMORY_TYPE_NORMAL_NC;
+      type = VIRT_MEMORY_TYPE_NORMAL;
       page = VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE;
     }
     // map page

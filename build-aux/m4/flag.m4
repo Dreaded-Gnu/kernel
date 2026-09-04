@@ -41,7 +41,7 @@ AC_DEFUN([BOLTHUR_LIBRARY_SET_FLAG], [
     AS_IF([test "x$with_debug_symbols" == "xyes"], [
       # debug symbols and sanitizer
       # -fsanitize=undefined
-      AX_APPEND_COMPILE_FLAGS([-g -Og])
+      AX_APPEND_COMPILE_FLAGS([-g])
     ])
     # optimization level
     case "${with_optimization_level}" in
@@ -64,9 +64,7 @@ AC_DEFUN([BOLTHUR_LIBRARY_SET_FLAG], [
         AX_APPEND_COMPILE_FLAGS([-Og])
         ;;
       *)
-        AS_IF([test "x$with_debug_symbols" != "xyes"], [
-          AX_APPEND_COMPILE_FLAGS([-O2])
-        ] )
+        AX_APPEND_COMPILE_FLAGS([-O2])
         ;;
     esac
   ])
@@ -115,7 +113,7 @@ AC_DEFUN([BOLTHUR_KERNEL_SET_FLAG], [
     # debug parameter
     AS_IF([test "x$with_debug_symbols" == "xyes"], [
       # debug symbols and sanitizer
-      AX_APPEND_COMPILE_FLAGS([-g -Og])
+      AX_APPEND_COMPILE_FLAGS([-g])
     ])
     AS_IF([test "x$with_ubsan_enabled" == "xyes"], [
       AX_APPEND_COMPILE_FLAGS([-fsanitize=undefined])
@@ -144,9 +142,7 @@ AC_DEFUN([BOLTHUR_KERNEL_SET_FLAG], [
         AX_APPEND_COMPILE_FLAGS([-Og])
         ;;
       *)
-        AS_IF([test "x$with_debug_symbols" != "xyes"], [
-          AX_APPEND_COMPILE_FLAGS([-O2])
-        ] )
+        AX_APPEND_COMPILE_FLAGS([-O2])
         ;;
     esac
   ])
@@ -205,7 +201,7 @@ AC_DEFUN([BOLTHUR_SERVER_SET_FLAG], [
     AS_IF([test "x$with_debug_symbols" == "xyes"], [
       # debug symbols and sanitizer
       # -fsanitize=undefined
-      AX_APPEND_COMPILE_FLAGS([-g -Og])
+      AX_APPEND_COMPILE_FLAGS([-g])
     ])
     #AS_IF([test "x$with_ubsan_enabled" == "xyes"], [
     #  AX_APPEND_COMPILE_FLAGS([-fsanitize=undefined])
@@ -234,9 +230,7 @@ AC_DEFUN([BOLTHUR_SERVER_SET_FLAG], [
         AX_APPEND_COMPILE_FLAGS([-Og])
         ;;
       *)
-        AS_IF([test "x$with_debug_symbols" != "xyes"], [
-          AX_APPEND_COMPILE_FLAGS([-O2])
-        ] )
+        AX_APPEND_COMPILE_FLAGS([-O2])
         ;;
     esac
   ])
@@ -282,7 +276,7 @@ AC_DEFUN([BOLTHUR_APPLICATION_SET_FLAG], [
     AS_IF([test "x$with_debug_symbols" == "xyes"], [
       # debug symbols and sanitizer
       # -fsanitize=undefined
-      AX_APPEND_COMPILE_FLAGS([-g -Og])
+      AX_APPEND_COMPILE_FLAGS([-g])
     ])
     # optimization level
     case "${with_optimization_level}" in
@@ -305,9 +299,7 @@ AC_DEFUN([BOLTHUR_APPLICATION_SET_FLAG], [
         AX_APPEND_COMPILE_FLAGS([-Og])
         ;;
       *)
-        AS_IF([test "x$with_debug_symbols" != "xyes"], [
-          AX_APPEND_COMPILE_FLAGS([-O2])
-        ] )
+        AX_APPEND_COMPILE_FLAGS([-O2])
         ;;
     esac
   ])

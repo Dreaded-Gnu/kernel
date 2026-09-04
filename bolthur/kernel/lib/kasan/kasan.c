@@ -112,7 +112,7 @@ void kasan_poison_shadow(
       assert( virt_map_address_random(
         virt_current_kernel_context,
         map_addr,
-        VIRT_MEMORY_TYPE_NORMAL_NC,
+        VIRT_MEMORY_TYPE_NORMAL,
         VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
       ) );
       // adjust end

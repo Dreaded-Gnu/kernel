@@ -17,12 +17,12 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../../../../lib/stdlib.h"
 #include "../../../../lib/string.h"
 #include "../../../../lib/inttypes.h"
 #include "../cpu.h"
 #include "../../../../mm/virt.h"
 #include "../../../../rpc/backup.h"
+#include "../../../../cpu/pool.h"
 #include "../../../../rpc/data.h"
 #include "../../../../rpc/pool.h"
 #if defined( PRINT_RPC )
@@ -115,7 +115,7 @@ rpc_backup_t* rpc_backup_create(
     cpu = thread->current_active_backup->context;
   }
   // reserve space for backup context
-  backup->context = malloc( sizeof( cpu_register_context_t ) );
+  backup->context = cpu_pool_pop();
   if ( ! backup->context ) {
     rpc_backup_destroy( backup );
     return nullptr;
@@ -196,7 +196,8 @@ rpc_backup_t* rpc_backup_create(
   #endif
   // save thread state and state data
   backup->thread_state = thread->state;
-  memcpy( &backup->thread_state_data, &thread->state_data, sizeof( task_state_data_t ) );
+  backup->thread_state_data.data_ptr = thread->state_data.data_ptr;
+  backup->thread_state_data.data_size = thread->state_data.data_size;
   // in case thread state is rpc wait for call we need to go back to active
   // after rpc, because it may be a sleep that is active
   if ( TASK_THREAD_STATE_RPC_WAIT_FOR_CALL == backup->thread_state ) {

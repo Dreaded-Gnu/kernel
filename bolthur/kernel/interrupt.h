@@ -43,28 +43,27 @@ typedef enum {
   INTERRUPT_TOGGLE_OFF
 } interrupt_toggle_state_t;
 
-struct interrupt_manager {
+typedef struct interrupt_manager {
   avl_tree_t* normal_interrupt;
   avl_tree_t* fast_interrupt;
   avl_tree_t* software_interrupt;
-};
+} interrupt_manager_t;
 
-struct interrupt_block {
+/**
+ * @brief Interrupt block
+ */
+typedef struct interrupt_block {
+  /** avl node */
   avl_node_t node;
+  /** interrupt */
   size_t interrupt;
-  list_manager_t* handler;
-  list_manager_t* process;
-  list_manager_t* post;
-};
-
-struct interrupt_callback_wrapper {
-  interrupt_callback_t callback;
-  task_process_t* process;
-};
-
-typedef struct interrupt_manager interrupt_manager_t;
-typedef struct interrupt_block interrupt_block_t;
-typedef struct interrupt_callback_wrapper interrupt_callback_wrapper_t;
+  /** internal callback */
+  interrupt_callback_t internal;
+  /** external callback */
+  task_process_t* external;
+  /** post callback */
+  interrupt_callback_t post;
+} interrupt_block_t;
 
 #define INTERRUPT_GET_BLOCK( n ) \
   ( interrupt_block_t* )( ( uint8_t* )n - offsetof( interrupt_block_t, node ) )
@@ -83,7 +82,7 @@ void interrupt_handle( size_t, interrupt_type_t, void*, bool );
 bool interrupt_register_handler( size_t, interrupt_callback_t, task_process_t*, interrupt_type_t, bool, bool );
 bool interrupt_unregister_handler( size_t, interrupt_callback_t, const task_process_t*, interrupt_type_t, bool, bool );
 void interrupt_handle_possible( void*, bool );
-void interrupt_unregister_process( task_process_t* );
+void interrupt_unregister_process( const task_process_t* );
 void* interrupt_get_context( void* );
 
 void interrupt_clear( int8_t );

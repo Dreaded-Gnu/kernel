@@ -96,6 +96,9 @@ AM_PROG_AS
 BOLTHUR_PROG_OBJCOPY
 BOLTHUR_PROG_STRIP
 
+AC_CHECK_TOOL([AR], [gcc-ar])
+AC_CHECK_TOOL([RANLIB], [gcc-ranlib])
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE

@@ -6,6 +6,7 @@ SUBDIRS = . lib arch platform target
 noinst_LTLIBRARIES = libkernel.la
 libkernel_la_SOURCES = \
   ../../thirdparty/dlmalloc/dlmalloc.c \
+  cpu/pool.c \
   debug/breakpoint.c \
   debug/gdb.c \
   debug/string.c \

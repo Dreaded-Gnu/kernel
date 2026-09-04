@@ -17,26 +17,11 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../cpu/pool.h"
-#include "backup.h"
-#include "data.h"
-#include "pool.h"
+.section .text
 
-/**
- * @fn void rpc_backup_destroy(rpc_backup_t*)
- * @brief backup to destroy
- *
- * @param backup
- */
-void rpc_backup_destroy( rpc_backup_t* backup ) {
-  // handle invalid
-  if ( ! backup ) {
-    return;
-  }
-  // free context
-  if ( backup->context ) {
-    cpu_pool_push( backup->context );
-  }
-  // push again back on pool
-  rpc_pool_push( backup );
-}
+#include "../../../assembly.h"
+
+EXPORT( timer_get_current_tick_value )
+timer_get_current_tick_value:
+  mrrc p15, 1, r0, r1, c14
+  bx lr

@@ -17,26 +17,19 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../cpu/pool.h"
-#include "backup.h"
-#include "data.h"
-#include "pool.h"
+#ifndef _ARCH_ARM_V7_CPU_POOL_H
+#define _ARCH_ARM_V7_CPU_POOL_H
 
-/**
- * @fn void rpc_backup_destroy(rpc_backup_t*)
- * @brief backup to destroy
- *
- * @param backup
- */
-void rpc_backup_destroy( rpc_backup_t* backup ) {
-  // handle invalid
-  if ( ! backup ) {
-    return;
-  }
-  // free context
-  if ( backup->context ) {
-    cpu_pool_push( backup->context );
-  }
-  // push again back on pool
-  rpc_pool_push( backup );
-}
+#include "../cpu.h"
+
+typedef struct cpu_pool
+{
+  cpu_register_context_t context;
+  struct cpu_pool* next;
+} cpu_pool_t;
+
+#define CPU_POOL_GET_CONTAINER( n ) ( cpu_pool_t* )( ( uint8_t* )n - offsetof( cpu_pool_t, context ) )
+#define ALIGN_UP( x, a ) ( ( ( x ) + ( a ) - 1 ) & ~( ( a ) - 1 ) )
+#define CONTEXT_STRIDE ALIGN_UP( sizeof( cpu_pool_t ), alignof( cpu_pool_t ) )
+
+#endif

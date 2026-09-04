@@ -278,7 +278,7 @@ bool task_process_init( void ) {
     return false;
   }
   // register cleanup
-  if ( ! event_bind( EVENT_PROCESS, task_process_cleanup, true ) ) {
+  if ( ! event_bind( EVENT_PROCESS_CLEANUP, task_process_cleanup, true ) ) {
     // debug output
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "bind failed\r\n" )
@@ -291,12 +291,12 @@ bool task_process_init( void ) {
     free( process_manager );
     return false;
   }
-  if ( ! event_bind( EVENT_PROCESS, task_thread_cleanup, true ) ) {
+  if ( ! event_bind( EVENT_PROCESS_CLEANUP, task_thread_cleanup, true ) ) {
     // debug output
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "bind failed\r\n" )
     #endif
-    event_unbind( EVENT_PROCESS, task_process_cleanup, true );
+    event_unbind( EVENT_PROCESS_CLEANUP, task_process_cleanup, true );
     event_unbind( EVENT_PROCESS, task_process_schedule, true );
     list_destruct( process_manager->thread_to_cleanup );
     list_destruct( process_manager->process_to_cleanup );
@@ -818,6 +818,7 @@ void task_process_prepare_kill( task_process_t* proc ) {
   list_push_back_data( process_manager->process_to_cleanup, proc );
   // trigger schedule and cleanup
   event_enqueue( EVENT_PROCESS );
+  event_enqueue( EVENT_PROCESS_CLEANUP );
 }
 
 /**
@@ -855,7 +856,7 @@ static int map_replace_random( const size_t size ) {
     const bool result = virt_map_address_random(
       virt_current_kernel_context,
       start,
-      VIRT_MEMORY_TYPE_NORMAL_NC,
+      VIRT_MEMORY_TYPE_NORMAL,
       VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
     );
     // handle failure

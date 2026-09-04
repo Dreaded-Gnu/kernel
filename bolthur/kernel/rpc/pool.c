@@ -59,7 +59,7 @@ void rpc_pool_setup( void ) {
     assert( virt_map_address_random(
       virt_current_kernel_context,
       addr,
-      VIRT_MEMORY_TYPE_NORMAL_NC,
+      VIRT_MEMORY_TYPE_NORMAL,
       VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
     ) );
   }
@@ -120,7 +120,6 @@ void rpc_pool_init( void ) {
     addr < rpc_pool_start + rpc_pool_size;
     addr += sizeof( rpc_backup_t )
   ) {
-    DEBUG_OUTPUT( "addr = %#"PRIxPTR"\r\n", addr );
     rpc_pool_push( ( rpc_backup_t* ) addr );
   }
 }
@@ -139,7 +138,7 @@ void rpc_pool_expand( void ) {
   if ( ! virt_map_address_random(
       virt_current_kernel_context,
       rpc_pool_start + rpc_pool_size,
-      VIRT_MEMORY_TYPE_NORMAL_NC,
+      VIRT_MEMORY_TYPE_NORMAL,
       VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
   ) ) {
     return;

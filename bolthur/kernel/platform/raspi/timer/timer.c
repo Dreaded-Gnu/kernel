@@ -18,18 +18,17 @@
  */
 
 #include "timer.h"
-#include "gpio.h"
-#include "peripheral.h"
-#include "../../arch/arm/barrier.h"
-#include "mailbox/property.h"
+#include "../peripheral.h"
+#include "../../../arch/arm/barrier.h"
+#include "../mailbox/property.h"
+#include "../../../io.h"
+#include "../../../timer.h"
+#include "../../../event.h"
+#include "../../../interrupt.h"
 #if defined( PRINT_TIMER )
   #include "../../lib/inttypes.h"
   #include "../../debug/debug.h"
 #endif
-#include "../../event.h"
-#include "../../io.h"
-#include "../../timer.h"
-#include "../../interrupt.h"
 
 static size_t timer_tick_count;
 
@@ -178,15 +177,4 @@ size_t timer_get_interval( void ) {
  */
 size_t timer_get_tick( void ) {
   return timer_tick_count;
-}
-
-/**
- * @fn uint64_t timer_get_current_tick_value( void )
- * @brief Method to get current tick value
- * @return
- */
-uint64_t timer_get_current_tick_value( void ) {
-  uint32_t low, high;
-  __asm__ __volatile__( "mrrc p15, 1, %0, %1, c14" : "=r" ( low ), "=r" ( high ) );
-  return ( ( uint64_t ) high << 32 ) | low;
 }

@@ -83,10 +83,12 @@ bool rpc_generic_restore( task_thread_t* thread ) {
       backup->thread->process->id, backup->thread->state, backup->thread_state )
   #endif
   // set correct state
-  task_thread_set_state( backup->thread, backup->thread_state );
-  memcpy( &thread->state_data, &backup->thread->state_data, sizeof( task_state_data_t ) );
+  task_thread_set_state( thread, backup->thread_state );
+  // restore thread state data
+  thread->state_data.data_ptr = backup->thread_state_data.data_ptr;
+  thread->state_data.data_size = backup->thread_state_data.data_size;
   // reset active rpc
-  backup->thread->current_active_backup = nullptr;
+  thread->current_active_backup = nullptr;
 
   // handle sync return on end
   if ( backup->sync_return_on_end ) {
@@ -158,11 +160,8 @@ bool rpc_generic_restore( task_thread_t* thread ) {
       // set thread state
       next->thread_state = thread->state;
       // copy over thread state data
-      memcpy(
-        &next->thread->state_data,
-        &thread->state_data,
-        sizeof( task_state_data_t )
-      );
+      next->thread->state_data.data_ptr = thread->state_data.data_ptr;
+      next->thread->state_data.data_size = thread->state_data.data_size;
     }
     // debug output
     #if defined( PRINT_RPC )

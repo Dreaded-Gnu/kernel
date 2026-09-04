@@ -26,7 +26,7 @@
 #include "../../lib/inttypes.h"
 #include "../../debug/debug.h"
 #include "interrupt.h"
-#include "timer.h"
+#include "timer/timer.h"
 
 /**
  * @fn bool interrupt_validate_number(size_t)
@@ -36,7 +36,7 @@
  * @return true if interrupt is valid
  * @return false if interrupt is invalid
  */
-bool interrupt_validate_number( const size_t num ) {
+__no_stack_protector bool interrupt_validate_number( const size_t num ) {
   return ! (
     num != IRQ_MAILBOX && num != ARM_CORE0_TIMER_INTERRUPT
     && num != IRQ_USB && num != IRQ_AUX
@@ -55,7 +55,7 @@ bool interrupt_validate_number( const size_t num ) {
  * @param num number to validate
  * @return
  */
-bool interrupt_validate_number_rpc( const size_t num ) {
+__no_stack_protector bool interrupt_validate_number_rpc( const size_t num ) {
   return interrupt_validate_number( num ) && !(
     num != IRQ_USB
   );
@@ -146,43 +146,19 @@ void interrupt_mask_specific( const int8_t num ) {
  * @param num interrupt number to disable
  */
 void interrupt_unmask_specific( const int8_t num ) {
-  uint32_t interrupt = (uint32_t)num;
-  // get peripheral base
-  const uint32_t base = ( uint32_t )peripheral_base_get( PERIPHERAL_GPIO );
-  // get interrupt enable and pending
-  uint32_t interrupt_enable = base;
-  uint32_t interrupt_pending = base;
-  uint32_t interrupt_disable = base;
-  if ( 32 > interrupt ) {
-    interrupt_enable += INTERRUPT_ENABLE_IRQ_1;
-    interrupt_disable += INTERRUPT_DISABLE_IRQ_1;
-    interrupt_pending += INTERRUPT_IRQ_PENDING_1;
-  } else if ( 64 > interrupt ) {
-    interrupt_enable += INTERRUPT_ENABLE_IRQ_2;
-    interrupt_pending += INTERRUPT_IRQ_PENDING_2;
-    interrupt_disable += INTERRUPT_DISABLE_IRQ_2;
-    interrupt -= 32;
+  if ( 32 > num ) {
+    io_out32(
+      peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_1,
+      1U << num
+    );
+  } else if ( 64 > num ) {
+    io_out32(
+      peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_2,
+      1U << ( num - 32 )
+    );
   } else {
     PANIC( "Unsupported interrupt number!" )
   }
-  // transform to bit
-  interrupt = 1 << interrupt;
-  // get and clear interrupt enable
-  #if defined( PRINT_INTERRUPT )
-    DEBUG_OUTPUT( "Disabling interrupt %"PRId8"\r\n", num )
-  #endif
-  // read enable, remove it and write back
-  uint32_t enable = io_in32( interrupt_enable );
-  enable &= ~interrupt;
-  io_out32( interrupt_enable, enable );
-  // read enable, remove it and write back
-  uint32_t disable = io_in32( interrupt_disable );
-  disable |= interrupt;
-  io_out32( interrupt_disable, disable );
-  // get and clear pending interrupt from memory
-  uint32_t interrupt_line = io_in32( interrupt_pending );
-  interrupt_line &= ~interrupt;
-  io_out32( interrupt_pending, interrupt_line );
 }
 
 /**
@@ -256,7 +232,7 @@ void interrupt_handle_possible( void* context, const bool fast ) {
  * @brief Method to disable interrupt after successful handling
  * @param num interrupt number to disable
  */
-void interrupt_disable_after_handling( const int8_t num ) {
+__no_stack_protector void interrupt_disable_after_handling( const int8_t num ) {
   // skip timer or invalid interrupt
   if (
     ARM_CORE0_TIMER_INTERRUPT == num

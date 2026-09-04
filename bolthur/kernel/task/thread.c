@@ -402,6 +402,7 @@ void task_thread_kill( task_thread_t* thread, const bool schedule ) {
   // trigger schedule if necessary
   if ( schedule ) {
     event_enqueue( EVENT_PROCESS );
+    event_enqueue( EVENT_PROCESS_CLEANUP );
   }
 }
 

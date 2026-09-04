@@ -23,6 +23,7 @@
 #include "../library/collection/list/list.h"
 #include "panic.h"
 #include "event.h"
+#include "stack.h"
 #if defined( PRINT_EVENT )
   #include "debug/debug.h"
 #endif
@@ -272,7 +273,7 @@ void event_handle( void* data ) {
     DEBUG_OUTPUT( "Enter event_handle( %p )\r\n", data )
   #endif
   // determine origin
-  const event_origin_t origin = EVENT_DETERMINE_ORIGIN( data );
+  const event_origin_t origin = event_determine_origin( data );
   // debug output
   #if defined( PRINT_EVENT )
     DEBUG_OUTPUT( "origin = %d\r\n", origin )
@@ -366,4 +367,20 @@ void event_handle( void* data ) {
     // recursive call for handle remaining events
     event_handle( data );
   }
+}
+
+/**
+ * @fn event_origin_t event_determine_origin( const void* context )
+ * @brief Helper to determine origin
+ * @param context context to check
+ * @return
+ */
+__no_stack_protector event_origin_t event_determine_origin( const void* context ) {
+  if ( ! context ) {
+    return EVENT_ORIGIN_USER;
+  }
+  if ( ! stack_is_kernel( ( uintptr_t )context ) ) {
+    return EVENT_ORIGIN_USER;
+  }
+  return EVENT_ORIGIN_KERNEL;
 }

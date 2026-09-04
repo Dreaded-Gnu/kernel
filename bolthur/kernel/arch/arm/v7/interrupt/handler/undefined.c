@@ -45,7 +45,7 @@ void vector_undefined_instruction_handler( cpu_register_context_t* cpu ) {
   nested_undefined++;
   assert( nested_undefined < INTERRUPT_NESTED_MAX )
   // get event origin
-  const event_origin_t origin = EVENT_DETERMINE_ORIGIN( cpu );
+  const event_origin_t origin = event_determine_origin( cpu );
   // get context
   cpu = interrupt_get_context( cpu );
   // debug output

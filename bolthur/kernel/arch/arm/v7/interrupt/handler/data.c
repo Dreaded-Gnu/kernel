@@ -60,7 +60,7 @@ static uint32_t nested_data_abort = 0;
     DEBUG_OUTPUT( "cpu = %p\r\n", cpu )
   #endif
   // get event origin
-  const event_origin_t origin = EVENT_DETERMINE_ORIGIN( cpu );
+  const event_origin_t origin = event_determine_origin( cpu );
   // debug output
   #if defined( PRINT_EXCEPTION )
     DEBUG_OUTPUT( "origin = %d\r\n", origin )

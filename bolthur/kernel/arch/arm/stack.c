@@ -30,7 +30,7 @@ extern void stack_supervisor_mode( void );
  * @return true
  * @return false
  */
-bool stack_is_kernel( const uintptr_t address ) {
+__no_stack_protector bool stack_is_kernel( const uintptr_t address ) {
   const uintptr_t stack_start = ( uintptr_t )&stack_supervisor_mode;
   const uintptr_t stack_end = stack_start + STACK_SIZE;
   return stack_start <= address && stack_end > address;

@@ -1,6 +1,7 @@
 
 noinst_LTLIBRARIES = libv7.la
 libv7_la_SOURCES = \
+  cpu/pool.c \
   debug/barrier.c \
   debug/breakpoint.c \
   debug/cache.c \
