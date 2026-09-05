@@ -445,8 +445,6 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
 
   const uint64_t end_tick_count = timer_get_current_tick_value();
   if ( 9 == num ) {
-    const uint64_t diff = ( uint64_t )( ( ( double )( end_tick_count - start_tick_count ) / timer_get_frequency() ) * 1000.0 );
-    DEBUG_OUTPUT( "diff = %"PRIu64"\r\n", diff )
     DEBUG_OUTPUT( "start_tick_count = %"PRIu64"\r\n", start_tick_count )
     DEBUG_OUTPUT( "t_tree_by_type = %"PRIu64"\r\n", t_tree_by_type )
     DEBUG_OUTPUT( "t_node_by_num = %"PRIu64"\r\n", t_node_by_num )

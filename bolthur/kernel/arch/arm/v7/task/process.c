@@ -286,8 +286,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     }
     // flush everything
     virt_flush_complete();
-    // clear cache
-    cache_invalidate_save();
     // debug output
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "Switch to %d\r\n", next_thread->process->id )

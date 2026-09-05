@@ -29,7 +29,6 @@ libv7_la_SOURCES = \
   task/stub.S \
   task/thread.c \
   arch.c \
-  barrier.c \
   cache.c \
   fpu.S \
   syscall.c

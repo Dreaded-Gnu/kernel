@@ -27,7 +27,7 @@
  * @param port port to read
  * @return uint8_t received value
  */
-uint8_t io_in8( const uint32_t port ) {
+__no_stack_protector uint8_t io_in8( const uint32_t port ) {
   return ( uint8_t )io_in32( port );
 }
 
@@ -37,7 +37,7 @@ uint8_t io_in8( const uint32_t port ) {
  * @param port port to read
  * @param val value to write
  */
-void io_out8( const uint32_t port, const uint8_t val ) {
+__no_stack_protector void io_out8( const uint32_t port, const uint8_t val ) {
   io_out32( port, ( uint32_t )val );
 }
 
@@ -47,7 +47,7 @@ void io_out8( const uint32_t port, const uint8_t val ) {
  * @param port port to read
  * @return uint16_t received value
  */
-uint16_t io_in16( const uint32_t port ) {
+__no_stack_protector uint16_t io_in16( const uint32_t port ) {
   return ( uint16_t )io_in32( port );
 }
 
@@ -57,7 +57,7 @@ uint16_t io_in16( const uint32_t port ) {
  * @param port port to read
  * @param val value to write
  */
-void io_out16( const uint32_t port, const uint16_t val ) {
+__no_stack_protector void io_out16( const uint32_t port, const uint16_t val ) {
   io_out32( port, ( uint32_t )val );
 }
 

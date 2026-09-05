@@ -37,16 +37,22 @@
  * @return false if interrupt is invalid
  */
 __no_stack_protector bool interrupt_validate_number( const size_t num ) {
-  return ! (
-    num != IRQ_MAILBOX && num != ARM_CORE0_TIMER_INTERRUPT
-    && num != IRQ_USB && num != IRQ_AUX
-    && num != IRQ_I2C_SPI && num != IRQ_PWA0
-    && num != IRQ_PWA1 && num != IRQ_SMI
-    && num != IRQ_GPIO0 && num != IRQ_GPIO1
-    && num != IRQ_GPIO2 && num != IRQ_GPIO3
-    && num != IRQ_I2C && num != IRQ_SPI
-    && num != IRQ_PCM && num != IRQ_UART
-  );
+  // special handling for timer interrupt
+  if ( num == ARM_CORE0_TIMER_INTERRUPT ) {
+    return true;
+  }
+  // handle invalid
+  if ( num >= 64 ) {
+    return false;
+  }
+  // build check bitmap
+  constexpr uint64_t bitmap = ( 1ULL << IRQ_MAILBOX ) | ( 1ULL << IRQ_USB ) | ( 1ULL << IRQ_AUX )
+    | ( 1ULL << IRQ_I2C_SPI ) | ( 1ULL << IRQ_PWA0 ) | ( 1ULL << IRQ_PWA1 )
+    | ( 1ULL << IRQ_SMI ) | ( 1ULL << IRQ_GPIO0 ) | ( 1ULL << IRQ_GPIO1 )
+    | ( 1ULL << IRQ_GPIO2 ) | ( 1ULL << IRQ_GPIO3 ) | ( 1ULL << IRQ_I2C )
+    | ( 1ULL << IRQ_SPI ) | ( 1ULL << IRQ_PCM ) | ( 1ULL << IRQ_UART );
+  // return bit set
+  return ( bitmap & ( 1ULL << num ) ) != 0;
 }
 
 /**
@@ -56,9 +62,17 @@ __no_stack_protector bool interrupt_validate_number( const size_t num ) {
  * @return
  */
 __no_stack_protector bool interrupt_validate_number_rpc( const size_t num ) {
-  return interrupt_validate_number( num ) && !(
-    num != IRQ_USB
-  );
+  if ( ! interrupt_validate_number( num ) ) {
+    return false;
+  }
+  // handle invalid
+  if ( num >= 64 ) {
+    return false;
+  }
+  // build check bitmap
+  constexpr uint64_t bitmap = ( 1ULL << IRQ_USB );
+  // return bit set
+  return ( bitmap & ( 1ULL << num ) ) != 0;
 }
 
 /**
@@ -145,7 +159,7 @@ void interrupt_mask_specific( const int8_t num ) {
  *
  * @param num interrupt number to disable
  */
-void interrupt_unmask_specific( const int8_t num ) {
+__no_stack_protector void interrupt_unmask_specific( const int8_t num ) {
   if ( 32 > num ) {
     io_out32(
       peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_1,

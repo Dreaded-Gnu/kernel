@@ -41,37 +41,3 @@ void peripheral_base_set( const uintptr_t addr, const peripheral_type_t type ) {
     gpio_peripheral_base = addr;
   }
 }
-
-/**
- * @fn uintptr_t peripheral_base_get(peripheral_type_t)
- * @brief Method to get peripheral base address
- *
- * @param type peripheral type
- * @return uintptr_t Peripheral base address
- */
-__no_stack_protector uintptr_t peripheral_base_get( const peripheral_type_t type ) {
-  if ( PERIPHERAL_LOCAL == type ) {
-    return cpu_peripheral_base;
-  }
-  if ( PERIPHERAL_GPIO == type ) {
-    return gpio_peripheral_base;
-  }
-  return 0;
-}
-
-/**
- * @fn uintptr_t peripheral_end_get(peripheral_type_t)
- * @brief Method to get peripheral base address
- *
- * @param type peripheral type
- * @return uintptr_t Peripheral end address
- */
-__no_stack_protector uintptr_t peripheral_end_get( const peripheral_type_t type ) {
-  if ( PERIPHERAL_LOCAL == type ) {
-    return cpu_peripheral_base + cpu_peripheral_size;
-  }
- if ( PERIPHERAL_GPIO == type ) {
-    return gpio_peripheral_base + gpio_peripheral_size;
-  }
-  return 0;
-}
