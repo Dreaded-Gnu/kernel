@@ -96,10 +96,9 @@ static int my_tar_close( [[maybe_unused]] int fd ) {
  * @return
  */
 static ssize_t my_tar_read( [[maybe_unused]] int fd, void* buffer, size_t count ) {
-  uint8_t* src = ( uint8_t* )ramdisk_decompressed + ramdisk_read_offset;
-  uint8_t* dst = ( uint8_t* )buffer;
-
-  uintptr_t end = ( uintptr_t )ramdisk_decompressed + ramdisk_decompressed_size;
+  const uint8_t* src = ( uint8_t* )ramdisk_decompressed + ramdisk_read_offset;
+  auto const dst = ( uint8_t* )buffer;
+  auto const end = ( uintptr_t )ramdisk_decompressed + ramdisk_decompressed_size;
   // handle end reached
   if ( ramdisk_decompressed + ramdisk_read_offset >= end ) {
     return 0;
@@ -109,7 +108,6 @@ static ssize_t my_tar_read( [[maybe_unused]] int fd, void* buffer, size_t count 
     size_t diff = ramdisk_decompressed + ramdisk_read_offset + count - end;
     count -= diff;
   }
-
   // move from src to destination
   for ( size_t i = 0; i < count; i++ ) {
     dst[ i ] = src[ i ];

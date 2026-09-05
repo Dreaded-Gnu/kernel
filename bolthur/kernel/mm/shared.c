@@ -606,10 +606,7 @@ bool shared_memory_detach( task_process_t* process, size_t id ) {
  * @return true
  * @return false
  */
-bool shared_memory_phys_is_shared(
-  task_process_t* process,
-  uint64_t start
-) {
+bool shared_memory_phys_is_shared( task_process_t* process, const uint64_t start ) {
   // get start node
   avl_node_t* node = avl_iterate_first( shared_tree );
   // loop until end

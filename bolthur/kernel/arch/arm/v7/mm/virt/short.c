@@ -1344,7 +1344,7 @@ bool v7_short_fork_global_directory(
 ) {
   for ( size_t gpd_idx = 0; gpd_idx < 2048; gpd_idx++ ) {
     // get middle table
-    sd_context_table_t* pmd_tbl_to_fork = &to_fork->table[ gpd_idx ];
+    const sd_context_table_t* pmd_tbl_to_fork = &to_fork->table[ gpd_idx ];
     sd_context_table_t* pmd_tbl_forked = &forked->table[ gpd_idx ];
     // get middle directory to fork
     uintptr_t pmd_phys_to_fork = pmd_tbl_to_fork->raw & 0xFFFFFC00;
@@ -1369,18 +1369,13 @@ bool v7_short_fork_global_directory(
     #endif
 
     // copy all attributes
-    memcpy(
-      pmd_tbl_forked,
-      pmd_tbl_to_fork,
-      sizeof( sd_context_table_t )
-    );
+    memcpy( pmd_tbl_forked, pmd_tbl_to_fork, sizeof( sd_context_table_t ) );
     // erase old address and set new one
     pmd_tbl_forked->data.frame = 0;
     pmd_tbl_forked->raw |= pmd_phys_forked & 0xFFFFFC00;
 
     // map both temporarily
-    sd_page_table_t* pmd_to_fork = ( sd_page_table_t* )
-      map_temporary( pmd_phys_to_fork, SD_TBL_SIZE );
+    auto pmd_to_fork = ( sd_page_table_t* )map_temporary( pmd_phys_to_fork, SD_TBL_SIZE );
     if ( ! pmd_to_fork ) {
       return false;
     }
@@ -1388,8 +1383,7 @@ bool v7_short_fork_global_directory(
     #if defined( PRINT_MM_VIRT )
       DEBUG_OUTPUT( "pmd_to_fork = %p\r\n", pmd_to_fork )
     #endif
-    sd_page_table_t* pmd_forked = ( sd_page_table_t* )
-      map_temporary( pmd_phys_forked, SD_TBL_SIZE );
+    auto const pmd_forked = ( sd_page_table_t* )map_temporary( pmd_phys_forked, SD_TBL_SIZE );
     if ( ! pmd_forked ) {
       unmap_temporary( ( uintptr_t )pmd_to_fork, SD_TBL_SIZE );
       return false;

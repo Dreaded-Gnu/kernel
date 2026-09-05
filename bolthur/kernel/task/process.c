@@ -416,7 +416,7 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   if ( ! forked ) {
     return nullptr;
   }
-  memset( ( void* )forked, 0, sizeof( task_process_t ) );
+  memset( forked, 0, sizeof( task_process_t ) );
   task_process_t* proc = thread_calling->process;
 
   // prepare dynamic data structures

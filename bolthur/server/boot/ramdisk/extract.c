@@ -35,9 +35,9 @@
  * @param shared_id
  */
 void* ramdisk_extract(
-  uintptr_t address,
-  size_t size,
-  size_t extract_size,
+  const uintptr_t address,
+  const size_t size,
+  const size_t extract_size,
   size_t* shared_id
 ) {
   // decompress

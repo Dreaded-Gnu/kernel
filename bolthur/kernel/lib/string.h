@@ -23,6 +23,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define U32_BLOCK_SIZE sizeof( uint32_t )
+#define U64_BLOCK_SIZE sizeof( uint64_t )
+#define BUFFER_UNALIGNED( val ) ( ( uintptr_t )val & ( U64_BLOCK_SIZE - 1 ) )
+#define SIZE_TOO_SMALL( size ) ( size < U64_BLOCK_SIZE )
+
 void* memchr( const void*, int, size_t );
 int memcmp( const void*, const void*, size_t );
 void* memcpy( void* restrict, const void* restrict, size_t );

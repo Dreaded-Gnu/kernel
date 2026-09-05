@@ -35,7 +35,7 @@
  * @param size
  * @return
  */
-size_t ramdisk_size( uintptr_t address, size_t size ) {
+size_t ramdisk_size( const uintptr_t address, const size_t size ) {
   size_t extract_len = 0;
 
   // zlib structure

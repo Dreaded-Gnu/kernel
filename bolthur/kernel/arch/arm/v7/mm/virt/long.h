@@ -41,10 +41,10 @@ bool v7_long_set_context( virt_context_t* );
 bool v7_long_prepare_temporary( virt_context_t* );
 virt_context_t* v7_long_create_context( virt_context_type_t );
 
-bool v7_long_fork_table( ld_page_table_t*, ld_page_table_t*, task_process_t* );
-bool v7_long_fork_middle_directory( ld_middle_page_directory*, ld_middle_page_directory*, task_process_t* );
-bool v7_long_fork_global_directory( ld_global_page_directory_t*, ld_global_page_directory_t*, task_process_t* );
-virt_context_t* v7_long_fork_context( virt_context_t*, task_process_t* );
+bool v7_long_fork_table( const ld_page_table_t*, ld_page_table_t*, task_process_t* );
+bool v7_long_fork_middle_directory( const ld_middle_page_directory*, ld_middle_page_directory*, task_process_t* );
+bool v7_long_fork_global_directory( const ld_global_page_directory_t*, ld_global_page_directory_t*, task_process_t* );
+virt_context_t* v7_long_fork_context( const virt_context_t*, task_process_t* );
 
 void v7_long_destroy_table( ld_page_table_t* );
 bool v7_long_destroy_middle_directory( ld_middle_page_directory* );

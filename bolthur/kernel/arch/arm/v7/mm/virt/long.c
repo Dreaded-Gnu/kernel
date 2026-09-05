@@ -1232,7 +1232,7 @@ virt_context_t* v7_long_create_context( virt_context_type_t type ) {
  * @return
  */
 bool v7_long_fork_table(
-  ld_page_table_t* to_fork,
+  const ld_page_table_t* to_fork,
   ld_page_table_t* forked,
   task_process_t* proc
 ) {
@@ -1243,11 +1243,8 @@ bool v7_long_fork_table(
       forked->page[ page_idx ].raw = to_fork->page[ page_idx ].raw;
       continue;
     }
-
     // get mapped address
-    uint64_t phys_to_fork = LD_PHYSICAL_PAGE_ADDRESS(
-      to_fork->page[ page_idx ].raw
-    );
+    const uint64_t phys_to_fork = LD_PHYSICAL_PAGE_ADDRESS( to_fork->page[ page_idx ].raw );
     // handle phys memory is shared
     if ( shared_memory_phys_is_shared( proc, phys_to_fork ) ) {
       // copy completely
@@ -1256,27 +1253,22 @@ bool v7_long_fork_table(
       continue;
     }
     // find new page for fork
-    uint64_t phys_forked = phys_find_free_page( PAGE_SIZE, PHYS_MEMORY_TYPE_NORMAL );
+    const uint64_t phys_forked = phys_find_free_page( PAGE_SIZE, PHYS_MEMORY_TYPE_NORMAL );
     if ( INVALID_ADDRESS == phys_forked ) {
       return false;
     }
-
     // map both pages temporarily
-    uintptr_t page_to_fork = ( uintptr_t )map_temporary(
-      phys_to_fork, PAGE_SIZE );
+    const uintptr_t page_to_fork = map_temporary( phys_to_fork, PAGE_SIZE );
     if ( ! page_to_fork ) {
       return false;
     }
-    uintptr_t page_forked = ( uintptr_t )map_temporary(
-      phys_forked, PAGE_SIZE );
+    const uintptr_t page_forked = map_temporary( phys_forked, PAGE_SIZE );
     if ( ! page_forked ) {
-      unmap_temporary( ( uintptr_t )page_to_fork, PAGE_SIZE );
+      unmap_temporary( page_to_fork, PAGE_SIZE );
       return false;
     }
-
     // copy content
     memcpy( ( void* )page_forked, ( const void* )page_to_fork, PAGE_SIZE );
-
     // copy attributes completely
     memcpy(
       &forked->page[ page_idx ],
@@ -1288,8 +1280,8 @@ bool v7_long_fork_table(
     forked->page[ page_idx ].raw |= LD_PHYSICAL_PAGE_ADDRESS( phys_forked );
 
     // unmap again
-    unmap_temporary( ( uintptr_t )page_to_fork, PAGE_SIZE );
-    unmap_temporary( ( uintptr_t )page_forked, PAGE_SIZE );
+    unmap_temporary( page_to_fork, PAGE_SIZE );
+    unmap_temporary( page_forked, PAGE_SIZE );
   }
   // return success
   return true;
@@ -1305,7 +1297,7 @@ bool v7_long_fork_table(
  * @return
  */
 bool v7_long_fork_middle_directory(
-  ld_middle_page_directory* to_fork,
+  const ld_middle_page_directory* to_fork,
   ld_middle_page_directory* forked,
   task_process_t* proc
 ) {
@@ -1331,36 +1323,24 @@ bool v7_long_fork_middle_directory(
     #endif
 
     // copy all attributes
-    memcpy(
-      &forked->table[ tbl_idx ],
-      &to_fork->table[ tbl_idx ],
-      sizeof( ld_context_table_level2_t )
-    );
+    memcpy( &forked->table[ tbl_idx ], &to_fork->table[ tbl_idx ], sizeof( ld_context_table_level2_t ) );
     // erase old address and set new one
     forked->table[ tbl_idx ].data.next_level_table = 0;
     forked->table[ tbl_idx ].raw |= LD_PHYSICAL_TABLE_ADDRESS( tbl_tbl_phys_forked );
 
     // map both page directories temporarily
-    ld_page_table_t* tbl_to_fork = ( ld_page_table_t* )map_temporary(
-      LD_PHYSICAL_TABLE_ADDRESS( to_fork->table[ tbl_idx ].raw ),
-      PAGE_SIZE );
+    auto const tbl_to_fork = ( ld_page_table_t* )map_temporary( LD_PHYSICAL_TABLE_ADDRESS( to_fork->table[ tbl_idx ].raw ), PAGE_SIZE );
     if ( ! tbl_to_fork ) {
       return false;
     }
-    ld_page_table_t* tbl_forked = ( ld_page_table_t* )map_temporary(
-      LD_PHYSICAL_TABLE_ADDRESS( forked->table[ tbl_idx ].raw ),
-      PAGE_SIZE );
+    auto const tbl_forked = ( ld_page_table_t* )map_temporary( LD_PHYSICAL_TABLE_ADDRESS( forked->table[ tbl_idx ].raw ), PAGE_SIZE );
     if ( ! tbl_forked ) {
       unmap_temporary( ( uintptr_t )tbl_to_fork, PAGE_SIZE );
       return false;
     }
 
     // fork table content
-    if ( ! v7_long_fork_table(
-     tbl_to_fork,
-     tbl_forked,
-     proc
-    ) ) {
+    if ( ! v7_long_fork_table( tbl_to_fork, tbl_forked, proc ) ) {
       unmap_temporary( ( uintptr_t )tbl_to_fork, PAGE_SIZE );
       unmap_temporary( ( uintptr_t )tbl_forked, PAGE_SIZE );
       return false;
@@ -1384,63 +1364,49 @@ bool v7_long_fork_middle_directory(
  * @return
  */
 bool v7_long_fork_global_directory(
-  ld_global_page_directory_t* to_fork,
+  const ld_global_page_directory_t* to_fork,
   ld_global_page_directory_t* forked,
   task_process_t* proc
 ) {
   for ( size_t gpd_idx = 0; gpd_idx < 512; gpd_idx++ ) {
     // get middle table
-    ld_context_table_level1_t* pmd_tbl_to_fork = &to_fork->table[ gpd_idx ];
+    const ld_context_table_level1_t* pmd_tbl_to_fork = &to_fork->table[ gpd_idx ];
     ld_context_table_level1_t* pmd_tbl_forked = &forked->table[ gpd_idx ];
     // get middle directory to fork
-    uint64_t pmd_phys_to_fork = LD_PHYSICAL_TABLE_ADDRESS( pmd_tbl_to_fork->raw );
+    const uint64_t pmd_phys_to_fork = LD_PHYSICAL_TABLE_ADDRESS( pmd_tbl_to_fork->raw );
     // skip if not mapped!
     if ( 0 == pmd_phys_to_fork ) {
       continue;
     }
 
     // create page table
-    uint64_t pmd_phys_forked = get_new_table( 0 );
+    const uint64_t pmd_phys_forked = get_new_table( 0 );
     // handle not enough memory
     if ( 0 == pmd_phys_forked ) {
       return false;
     }
 
     // copy all attributes
-    memcpy(
-      pmd_tbl_forked,
-      pmd_tbl_to_fork,
-      sizeof( ld_context_table_level1_t )
-    );
+    memcpy( pmd_tbl_forked, pmd_tbl_to_fork, sizeof( ld_context_table_level1_t ) );
     // erase old address and set new one
     pmd_tbl_forked->data.next_level_table = 0;
     pmd_tbl_forked->raw |= LD_PHYSICAL_TABLE_ADDRESS( pmd_phys_forked );
 
     // map both temporarily
-    ld_middle_page_directory* pmd_to_fork = ( ld_middle_page_directory* )
-      map_temporary(
-        LD_PHYSICAL_TABLE_ADDRESS( pmd_phys_to_fork ),
-        PAGE_SIZE );
+    auto const pmd_to_fork = ( ld_middle_page_directory* ) map_temporary( LD_PHYSICAL_TABLE_ADDRESS( pmd_phys_to_fork ), PAGE_SIZE );
     if ( ! pmd_to_fork ) {
       return false;
     }
-    ld_middle_page_directory* pmd_forked = ( ld_middle_page_directory* )
-      map_temporary(
-        LD_PHYSICAL_TABLE_ADDRESS( pmd_tbl_forked->raw ),
-        PAGE_SIZE );
+    auto const pmd_forked = ( ld_middle_page_directory* ) map_temporary( LD_PHYSICAL_TABLE_ADDRESS( pmd_tbl_forked->raw ), PAGE_SIZE );
     if ( ! pmd_forked ) {
       unmap_temporary( ( uintptr_t )pmd_to_fork, PAGE_SIZE );
       return false;
     }
     // prepare new table
-    memset( ( void* )pmd_forked, 0, PAGE_SIZE );
+    memset( pmd_forked, 0, PAGE_SIZE );
 
     // fork middle directory
-    if ( ! v7_long_fork_middle_directory(
-      pmd_to_fork,
-      pmd_forked,
-      proc
-    ) ) {
+    if ( ! v7_long_fork_middle_directory( pmd_to_fork, pmd_forked, proc ) ) {
       unmap_temporary( ( uintptr_t )pmd_to_fork, PAGE_SIZE );
       unmap_temporary( ( uintptr_t )pmd_forked, PAGE_SIZE );
       return false;
@@ -1462,7 +1428,7 @@ bool v7_long_fork_global_directory(
  * @param proc forked process structure
  * @return forked context or nullptr
  */
-virt_context_t* v7_long_fork_context( virt_context_t* ctx, task_process_t* proc ) {
+virt_context_t* v7_long_fork_context( const virt_context_t* ctx, task_process_t* proc ) {
   // create new context
   virt_context_t* forked = virt_create_context( ctx->type );
   if ( ! forked ) {
@@ -1472,14 +1438,14 @@ virt_context_t* v7_long_fork_context( virt_context_t* ctx, task_process_t* proc 
   forked->bitmap_length = ctx->bitmap_length;
 
   // map passed context temporarily
-  uintptr_t ctx_to_fork = map_temporary( ctx->context, PAGE_SIZE );
+  const uintptr_t ctx_to_fork = map_temporary( ctx->context, PAGE_SIZE );
   // handle error
   if ( 0 == ctx_to_fork ) {
     assert( virt_destroy_context( forked, false ) )
     return nullptr;
   }
   // map new context temporarily
-  uintptr_t ctx_forked = map_temporary( forked->context, PAGE_SIZE );
+  const uintptr_t ctx_forked = map_temporary( forked->context, PAGE_SIZE );
   // handle error
   if ( 0 == ctx_forked ) {
     unmap_temporary( ctx_to_fork, PAGE_SIZE );
@@ -1502,8 +1468,8 @@ virt_context_t* v7_long_fork_context( virt_context_t* ctx, task_process_t* proc 
   }
 
   // unmap temporary
-  unmap_temporary( ( uintptr_t )ctx_to_fork, PAGE_SIZE );
-  unmap_temporary( ( uintptr_t )ctx_forked, PAGE_SIZE );
+  unmap_temporary( ctx_to_fork, PAGE_SIZE );
+  unmap_temporary( ctx_forked, PAGE_SIZE );
 
   return forked;
 }
