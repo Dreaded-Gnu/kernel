@@ -49,8 +49,6 @@ typedef struct __aligned( 64 ) rpc_backup {
   bool sync;
   /** origin data id */
   size_t origin_data_id;
-  /** rpc info */
-  void* rpc_info;
   // necessary for nested rpc to return sync on end
   /** synchronous return on end */
   bool sync_return_on_end;
@@ -64,11 +62,13 @@ typedef struct __aligned( 64 ) rpc_backup {
   bool is_timer;
   /** squeezed in rpc */
   bool squeezed_in;
+  /** list item of this backup */
+  list_item_t* list_item;
   /** pointer to possible next backup */
   struct rpc_backup* next;
 } rpc_backup_t;
 
-rpc_backup_t* rpc_backup_create( task_thread_t*, const task_process_t*, size_t, const void*, size_t, task_thread_t*, bool, size_t, bool, bool, bool );
+rpc_backup_t* rpc_backup_create( task_thread_t*, const task_process_t*, size_t, const void*, size_t, task_thread_t*, bool, size_t, bool, bool, bool, bool );
 void rpc_backup_destroy( rpc_backup_t* );
 
 #endif

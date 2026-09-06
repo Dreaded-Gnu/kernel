@@ -26,6 +26,10 @@
 #include "data.h"
 #include "queue.h"
 #include "generic.h"
+
+#include "../debug/debug.h"
+#include "../lib/inttypes.h"
+
 #if defined( PRINT_RPC )
   #include "../debug/debug.h"
   #include "../lib/inttypes.h"
@@ -313,7 +317,8 @@ rpc_backup_t* rpc_generic_raise(
   const size_t origin_data_id,
   const bool disable_data,
   const bool is_interrupt,
-  const bool is_timer
+  const bool is_timer,
+  const bool measure
 ) {
   // debug output
   #if defined( PRINT_RPC )
@@ -322,6 +327,7 @@ rpc_backup_t* rpc_generic_raise(
       source, target, data, length, target_thread
     )
   #endif
+  const uint64_t t_before_backup = timer_get_current_tick_value();
   // backup necessary stuff
   rpc_backup_t* backup = rpc_backup_create(
     source,
@@ -334,7 +340,8 @@ rpc_backup_t* rpc_generic_raise(
     origin_data_id,
     disable_data,
     is_interrupt,
-    is_timer
+    is_timer,
+    measure
   );
   if ( ! backup ) {
     // debug output
@@ -344,6 +351,7 @@ rpc_backup_t* rpc_generic_raise(
     // skip if backup could not be created
     return nullptr;
   }
+  const uint64_t t_after_backup = timer_get_current_tick_value();
   // allocate new structure for tree
   if ( backup->data_id ) {
     rpc_origin_source_t* rpc_info = malloc( sizeof( *rpc_info ) );
@@ -375,11 +383,10 @@ rpc_backup_t* rpc_generic_raise(
       list_remove_data( backup->thread->process->rpc_queue, backup, true );
       return nullptr;
     }
-    // cache rpc info structure
-    backup->rpc_info = rpc_info;
   }
+  const uint64_t t_before_invoke = timer_get_current_tick_value();
   // prepare thread
-  if ( ! rpc_generic_prepare_invoke( backup ) ) {
+  if ( ! rpc_generic_prepare_invoke( backup, measure ) ) {
     // debug output
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "Error while preparing target %d\r\n", target->id )
@@ -388,6 +395,11 @@ rpc_backup_t* rpc_generic_raise(
     list_remove_data( backup->thread->process->rpc_queue, backup, true );
     // skip if error occurred during rpc invoke
     return nullptr;
+  }
+  const uint64_t t_after_invoke = timer_get_current_tick_value();
+  if ( measure ) {
+    DEBUG_OUTPUT( "t_after_backup - t_before_backup = %"PRIu64"\r\n", t_after_backup - t_before_backup )
+    DEBUG_OUTPUT( "t_after_invoke - t_before_invoke = %"PRIu64"\r\n", t_after_invoke - t_before_invoke )
   }
   // return created backup
   return backup;

@@ -237,8 +237,6 @@ list_item_t* list_item_create( void* data ) {
   if ( ! node ) {
     return nullptr;
   }
-  // overwrite allocated memory with 0
-  memset( node, 0, sizeof( list_item_t ) );
   // populate created node
   node->next = nullptr;
   node->previous = nullptr;
@@ -392,7 +390,7 @@ void list_print( list_manager_t* list ) {
 }
 
 /**
- * @fn bool list_push_front_data(list_manager_t*, void*)
+ * @fn list_item_t* list_push_front_data(list_manager_t*, void*)
  * @brief Method to push node with data into list
  *
  * @param list list to use
@@ -400,10 +398,10 @@ void list_print( list_manager_t* list ) {
  * @return true
  * @return false
  */
-bool list_push_front_data( list_manager_t* list, void* data ) {
+list_item_t* list_push_front_data( list_manager_t* list, void* data ) {
   // handle invalid parameter
   if ( ! list || ! data ) {
-    return false;
+    return nullptr;
   }
   // set list head
   list_item_t* first = list->first;
@@ -411,7 +409,7 @@ bool list_push_front_data( list_manager_t* list, void* data ) {
   list_item_t* node = list_item_create(data);
   // handle error
   if ( !node ) {
-    return false;
+    return nullptr;
   }
   // set next to first
   node->next = first;
@@ -425,33 +423,32 @@ bool list_push_front_data( list_manager_t* list, void* data ) {
   if ( ! list->last ) {
     list->last = list->first;
   }
-  return true;
+  return node;
 }
 
 /**
- * @fn bool list_push_back_data(list_manager_t*, void*)
+ * @fn list_item_t* list_push_back_data(list_manager_t*, void*)
  * @brief Method to push node with data into list
  *
  * @param list list to use
  * @param data data to push into list
- * @return true
- * @return false
+ * @return
  */
-bool list_push_back_data( list_manager_t* list, void* data ) {
+list_item_t* list_push_back_data( list_manager_t* list, void* data ) {
   // handle invalid parameter
   if ( !list || !data ) {
-    return false;
+    return nullptr;
   }
   // create new node
   list_item_t* node = list_item_create( data );
   // handle error
   if ( ! node ) {
-    return false;
+    return nullptr;
   }
   // handle empty
   if ( ! list->first ) {
     list->first = list->last = node;
-    return true;
+    return node;
   }
   // set previous to last
   node->previous = list->last;
@@ -460,7 +457,7 @@ bool list_push_back_data( list_manager_t* list, void* data ) {
   // overwrite last element within list pointer
   list->last = node;
   // return success
-  return true;
+  return node;
 }
 
 /**
@@ -513,21 +510,14 @@ bool list_remove_item( list_manager_t* list, list_item_t* item, const bool clean
   if ( !list || !item ) {
     return false;
   }
-  // stop if not existing
-  if ( !list_lookup_item( list, item ) ) {
-    return false;
-  }
-
   // set previous of next
   if ( item->next ) {
     item->next->previous = item->previous;
   }
-
   // set next of previous
   if ( item->previous ) {
     item->previous->next = item->next;
   }
-
   // handle head removal
   if ( item == list->first ) {
     list->first = item->next;
@@ -536,7 +526,6 @@ bool list_remove_item( list_manager_t* list, list_item_t* item, const bool clean
   if ( item == list->last ) {
     list->last = item->previous;
   }
-
   // free list item
   if ( cleanup ) {
     list->cleanup( item );
@@ -609,7 +598,7 @@ bool list_insert_data( list_manager_t* list, void* data ) {
 }
 
 /**
- * @fn bool list_insert_data_before(list_manager_t*, list_item_t*, void*)
+ * @fn list_item_t* list_insert_data_before(list_manager_t*, list_item_t*, void*)
  * @brief Insert data before item
  *
  * @param list
@@ -617,7 +606,7 @@ bool list_insert_data( list_manager_t* list, void* data ) {
  * @param data
  * @return
  */
-bool list_insert_data_before(
+list_item_t* list_insert_data_before(
   list_manager_t* list,
   list_item_t* item,
   void* data
@@ -630,7 +619,7 @@ bool list_insert_data_before(
   list_item_t* to_insert = list_item_create( data );
   // handle error
   if ( !to_insert ) {
-    return false;
+    return nullptr;
   }
   // cache previous item
   list_item_t* previous = item->previous;
@@ -641,7 +630,7 @@ bool list_insert_data_before(
   to_insert->next = item;
   item->previous = to_insert;
   // success
-  return true;
+  return to_insert;
 }
 
 /**
