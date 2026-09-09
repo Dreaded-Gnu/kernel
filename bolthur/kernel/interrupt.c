@@ -321,7 +321,7 @@ bool interrupt_register_handler(
  * @param context interrupt context
  * @param disable disable pending interrupt
  */
-void interrupt_handle( size_t num, const interrupt_type_t type, void* context, const bool disable ) {
+void interrupt_handle( const size_t num, const interrupt_type_t type, void* context, const bool disable ) {
   // handle no interrupt manager as not bound
   if ( ! interrupt_manager ) {
     return;
@@ -405,7 +405,7 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
       true,
       true,
       false,
-      num == 9
+      9 == num && false
     );
     // handle error by skip
     if ( rpc ) {
@@ -443,7 +443,7 @@ void interrupt_handle( size_t num, const interrupt_type_t type, void* context, c
   const uint64_t t_disable_interrupt = timer_get_current_tick_value();
 
   const uint64_t end_tick_count = timer_get_current_tick_value();
-  if ( 9 == num ) {
+  if ( 9 == num && false ) {
     DEBUG_OUTPUT( "start_tick_count = %"PRIu64"\r\n", start_tick_count )
     DEBUG_OUTPUT( "t_tree_by_type = %"PRIu64"\r\n", t_tree_by_type )
     DEBUG_OUTPUT( "t_node_by_num = %"PRIu64"\r\n", t_node_by_num )

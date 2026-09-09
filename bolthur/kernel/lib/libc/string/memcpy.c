@@ -33,14 +33,15 @@
  * @param src
  * @param size
  */
+__attribute__((__optimize__("O3")))
 void* memcpy( void* restrict dst, const void* restrict src, size_t size ) {
   #if defined( HAS_SANITIZER )
     kasan_check_memory( ( uintptr_t )dst, size, 1, KASAN_CALLER_PC );
     kasan_check_memory( ( uintptr_t )src, size, 1, KASAN_CALLER_PC );
   #endif
   // cache destination and source
-  auto u8_dst = ( uint8_t * )dst;
-  auto u8_src = ( uint8_t * )src;
+  auto u8_dst = ( uint8_t* )dst;
+  auto u8_src = ( uint8_t* )src;
   // handle both have same unalignment
   if ( BUFFER_UNALIGNED( u8_dst ) == BUFFER_UNALIGNED( u8_src ) ) {
     // copy until we have proper 64 bit alignment
@@ -50,37 +51,28 @@ void* memcpy( void* restrict dst, const void* restrict src, size_t size ) {
     }
     // copy in 4 byte chunks
     if ( ! SIZE_TOO_SMALL( size ) ) {
-      // get 64bit pointers
-      auto u64_dst = ( uint64_t * )u8_dst;
-      auto u64_src = ( uint64_t * )u8_src;
       // set as much as possible at once
-      while ( size >= U64_BLOCK_SIZE * 4 ) {
-        *u64_dst++ = *u64_src++;
-        *u64_dst++ = *u64_src++;
-        *u64_dst++ = *u64_src++;
-        *u64_dst++ = *u64_src++;
-        size -= 4 * U64_BLOCK_SIZE;
+      while ( size >= U256_BLOCK_SIZE ) {
+        volatile uint64_t chunk[ 4 ];
+        chunk[ 0 ] = ( ( const uint64_t* )u8_src)[ 0 ];
+        chunk[ 1 ] = ( ( const uint64_t* )u8_src)[ 1 ];
+        chunk[ 2 ] = ( ( const uint64_t* )u8_src)[ 2 ];
+        chunk[ 3 ] = ( ( const uint64_t* )u8_src)[ 3 ];
+        ( ( uint64_t* )u8_dst )[ 0 ] = chunk[ 0 ];
+        ( ( uint64_t* )u8_dst )[ 1 ] = chunk[ 1 ];
+        ( ( uint64_t* )u8_dst )[ 2 ] = chunk[ 2 ];
+        ( ( uint64_t* )u8_dst )[ 3 ] = chunk[ 3 ];
+        u8_src += U256_BLOCK_SIZE;
+        u8_dst += U256_BLOCK_SIZE;
+        size -= U256_BLOCK_SIZE;
       }
       // set remaining 64bit blocks
       while ( size >= U64_BLOCK_SIZE ) {
-        *u64_dst++ = *u64_src++;
+        *( volatile uint64_t* )u8_dst = *( const volatile uint64_t* )u8_src;
+        u8_src += U64_BLOCK_SIZE;
+        u8_dst += U64_BLOCK_SIZE;
         size -= U64_BLOCK_SIZE;
       }
-      // Pick up any residual with a byte copier.
-      u8_dst = ( uint8_t* )u64_dst;
-      u8_src = ( uint8_t* )u64_src;
-    }
-  // it's not possible to get both aligned
-  } else {
-    // copy in word sizes
-    while ( size >= U32_BLOCK_SIZE ) {
-      // copy 32 bit
-      *u8_dst++ = *u8_src++;
-      *u8_dst++ = *u8_src++;
-      *u8_dst++ = *u8_src++;
-      *u8_dst++ = *u8_src++;
-      // subtract size
-      size -= U32_BLOCK_SIZE;
     }
   }
   // copy byte wise

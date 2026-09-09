@@ -611,8 +611,6 @@ void syscall_rpc_ret( void* context ) {
     #endif
     // dummy success
     syscall_populate_success( context, 0 );
-    // enqueue scheduler
-    event_enqueue( EVENT_PROCESS );
   }
 }
 

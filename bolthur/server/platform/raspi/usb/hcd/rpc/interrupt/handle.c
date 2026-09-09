@@ -24,7 +24,6 @@
 #include "../../dwhci.h"
 #include "../../../../libhcd.h"
 #include "../../../../../../../library/usb/usb.h"
-#include "../../../../iomem/barrier.h"
 
 /**
  * @fn void toggle_split_phase(const uint32_t, channel_queue_entry_t*);
@@ -79,7 +78,7 @@ static bool toggle_split_phase( const uint32_t cipt, channel_queue_entry_t* entr
  * @fn void wait_for_next_microframe( void )
  * @brief Helper to wait for next microframe
  */
-[[maybe_unused]] static void wait_for_next_microframe( void ) {
+static void wait_for_next_microframe( void ) {
   uint32_t start_frame = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM ) & 0xFFFF;
   uint32_t current_frame;
   do {
@@ -137,11 +136,6 @@ void rpc_interrupt_handle(
       channel_mask <<= 1;
     }
   }
-  // fire handle done
-  #if defined( DWHCI_ENABLE_DEBUG )
-    EARLY_STARTUP_PRINT( "Mark interrupts as handled\r\n" )
-  #endif
-  _syscall_interrupt_handled();
   // acquire interrupt again
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Acquiring interrupt again\r\n" )
@@ -174,7 +168,9 @@ void rpc_interrupt_handle(
         // write back to mark them as handled
         mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT( channel ), cipt );
 
-        libusb_transfer_error_t previous = entry->previous_transfer_status;
+        #if defined( DWHCI_ENABLE_DEBUG )
+          libusb_transfer_error_t previous = entry->previous_transfer_status;
+        #endif
 
         #if defined( DWHCI_ENABLE_DEBUG )
           EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
@@ -193,19 +189,19 @@ void rpc_interrupt_handle(
           entry->transfer_status |= LIBUSB_TRANSFER_ERROR_HALT;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_AHB_ERROR ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "AHB Error for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_AHB_ERROR;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_STALL ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Stall for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_STALL;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
             EARLY_STARTUP_PRINT( "Nack for channel %"PRIu32"\r\n", channel )
             EARLY_STARTUP_PRINT( "previous transfer = %#x\r\n", previous )
@@ -218,7 +214,7 @@ void rpc_interrupt_handle(
               entry->verify_size,
               entry->verify_num
             )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_NO_ACKNOWLEDGE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT ) {
@@ -227,13 +223,24 @@ void rpc_interrupt_handle(
           #endif
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_NOT_YET ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Not yet for channel %"PRIu32"\r\n", channel )
-          //#endif
+            EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
+            EARLY_STARTUP_PRINT( "previous transfer = %#x\r\n", previous )
+            EARLY_STARTUP_PRINT( "transfer = %#x\r\n", entry->transfer_status )
+            EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+            EARLY_STARTUP_PRINT(
+              "HCCHAR=%#"PRIx32" HCSPLT=%#"PRIx32" HCTSIZ=%#"PRIx32" HFNUM=%#"PRIx32"\r\n",
+              entry->verify_char,
+              entry->verify_split,
+              entry->verify_size,
+              entry->verify_num
+            )
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_NOT_YET_ERROR;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_TRANSACTION_ERROR ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Transaction error for channel %"PRIu32"\r\n", channel )
             EARLY_STARTUP_PRINT( "status = %d\r\n", entry->status )
             EARLY_STARTUP_PRINT( "Nack for channel %"PRIu32"\r\n", channel )
@@ -247,43 +254,43 @@ void rpc_interrupt_handle(
               entry->verify_size,
               entry->verify_num
             )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_TRANSACTION;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_BABBLE_ERROR ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Babble error for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BABBLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_FRAME_OVERRUN ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Frame overrun for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_FRAME_OVERRUN;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_DATA_TOGGLE_ERROR ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Data toggle error for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_DATA_TOGGLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_BUFFER_NOT_AVAILABLE ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Buffer not available for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BUFFER_NOT_AVAILABLE;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_EXCESSIVE_TRANSMISSION ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Excessive transmission for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_BUFFER_EXCESSIVE_TRANSMISSION;
         }
         if ( cipt & HCD_CHANNEL_INTERRUPT_FRAME_LIST_ROLLOVER ) {
-          //#if defined( DWHCI_ENABLE_DEBUG )
+          #if defined( DWHCI_ENABLE_DEBUG )
             EARLY_STARTUP_PRINT( "Rollover for channel %"PRIu32"\r\n", channel )
-          //#endif
+          #endif
           entry->error |= LIBUSB_TRANSFER_ERROR_LIST_ROLLOVER;
         }
         // extract transfer size
@@ -306,6 +313,48 @@ void rpc_interrupt_handle(
         // transfer complete flag
         const bool transfer_complete = cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE;
         const bool channel_halted = cipt & HCD_CHANNEL_INTERRUPT_HALT;
+
+        // handle nack without channel halted => immediate retry
+        if (
+          // treat nack as retry
+          (
+            ! channel_halted
+            && cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+            && DWHCI_QUEUE_POLL_STATUS_DATA != entry->status
+          // treat not yet with no split as retry
+          ) || (
+            channel_halted
+            && cipt & HCD_CHANNEL_INTERRUPT_NOT_YET
+            && DWHCI_QUEUE_POLL_STATUS_DATA != entry->status
+          )
+        ) {
+          // reset error
+          entry->error = 0;
+          // write int mask again
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ),
+            HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
+            | HCD_CHANNEL_INTERRUPT_HALT
+            | HCD_CHANNEL_INTERRUPT_ERROR_MASK
+            | HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT
+            | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+            | HCD_CHANNEL_INTERRUPT_NOT_YET
+          );
+          if ( DWHCI_SPLIT_PHASE_CSPLIT == entry->split_phase ) {
+            // read out split ctrl, set complete split and write it back
+            uint32_t split_control = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ) );
+            split_control |= HCD_DWHCI_CHAN_SPLIT_CONTROL_COMPLETE_SPLIT( 1 );
+            mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ), split_control );
+          }
+          // read character and enable it again
+          uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+          characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
+          characteristic |= HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+          // assign channel
+          channel_mask <<= 1;
+          // skip rest
+          continue;
+        }
 
         // on short response we've to reset packet to transfer because it marks
         // the end of usb transaction
@@ -348,6 +397,17 @@ void rpc_interrupt_handle(
             | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
             | HCD_CHANNEL_INTERRUPT_NOT_YET
           );
+
+          // handle possible wait for next microframe
+          entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+          const uint32_t ssplit_frame = ( entry->poll_ssplit_frame_num >> 3 ) & 0x7FF;
+          const uint32_t ssplit_uframe = entry->poll_ssplit_frame_num & 0x7;
+          const uint32_t csplit_frame = ( entry->poll_csplit_frame_num >> 3 ) & 0x7FF;
+          const uint32_t csplit_uframe = entry->poll_csplit_frame_num & 0x7;
+          if ( ssplit_frame == csplit_frame && ssplit_uframe == csplit_uframe ) {
+            wait_for_next_microframe();
+          }
+
           // calculate target frame
           const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
           const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
@@ -364,6 +424,7 @@ void rpc_interrupt_handle(
           entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
           // write back character
           mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+
           EARLY_STARTUP_PRINT(
             "SSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
             entry->poll_ssplit_frame_num,
@@ -384,8 +445,6 @@ void rpc_interrupt_handle(
           )
           // print interrupt
           EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
-          EARLY_STARTUP_PRINT( "parent device number = %"PRIu32"\r\n", entry_data->parent_device_number )
-          EARLY_STARTUP_PRINT( "port address = %"PRIu32"\r\n", entry_data->port_number + 1 )
           EARLY_STARTUP_PRINT( "split_control = %#"PRIx32"\r\n", split_control )
           EARLY_STARTUP_PRINT( "transfer_data = %#"PRIx32"\r\n", transfer_data )
           EARLY_STARTUP_PRINT( "characteristic = %#"PRIx32"\r\n", characteristic )
@@ -439,10 +498,8 @@ void rpc_interrupt_handle(
           #endif
         }
 
-        if ( DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT != entry->status ) {
-          // set previous state to current state
-          entry->previous_status = entry->status;
-        }
+        // set previous state to current state
+        entry->previous_status = entry->status;
 
         // handle halt without transfer complete by checking for possible complete
         bool switch_to_next_state = false;
@@ -534,12 +591,6 @@ void rpc_interrupt_handle(
           entry->poll_state = DWHCI_CHANNEL_STATE_DATA0 == entry->poll_state
             ? DWHCI_CHANNEL_STATE_DATA1 : DWHCI_CHANNEL_STATE_DATA0;
         }
-        if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
-          // reset status by previous status since we waited for channel to halt
-          entry->status = DWHCI_QUEUE_CHANNEL_STATUS_SETUP;
-          // reset error
-          entry->error = LIBUSB_TRANSFER_ERROR_NO_ERROR;
-        }
         // handle switch to next
         if ( switch_to_next_state ) {
           // evaluate next state
@@ -588,4 +639,9 @@ void rpc_interrupt_handle(
       channel_mask <<= 1;
     }
   }
+  // fire handle done
+  #if defined( DWHCI_ENABLE_DEBUG )
+    EARLY_STARTUP_PRINT( "Mark interrupts as handled\r\n" )
+  #endif
+  _syscall_interrupt_handled();
 }

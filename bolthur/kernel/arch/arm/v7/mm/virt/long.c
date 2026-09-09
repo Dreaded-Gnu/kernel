@@ -1717,7 +1717,7 @@ bool v7_long_is_mapped_in_context( virt_context_t* ctx, uintptr_t addr ) {
  */
 uint64_t v7_long_get_mapped_address_in_context(
   virt_context_t* ctx,
-  uintptr_t addr
+  const uintptr_t addr
 ) {
   // handle temporary area
   if ( addr >= TEMPORARY_SPACE_START && addr < TEMPORARY_SPACE_START + TEMPORARY_SPACE_SIZE ) {
@@ -1727,7 +1727,7 @@ uint64_t v7_long_get_mapped_address_in_context(
   uint32_t page_idx = LD_VIRTUAL_PAGE_INDEX( addr );
   uint64_t phys;
   // determine page index
-  uint64_t table_phys = v7_long_create_table( ctx, addr, 0 );
+  const uint64_t table_phys = v7_long_create_table( ctx, addr, 0 );
   if ( 0 == table_phys ) {
     #if defined( PRINT_MM_VIRT )
       DEBUG_OUTPUT( "Unable to get table!\r\n" )
@@ -1736,8 +1736,7 @@ uint64_t v7_long_get_mapped_address_in_context(
   }
 
   // map temporary
-  ld_page_table_t* table = ( ld_page_table_t* )map_temporary(
-    table_phys, PAGE_SIZE );
+  auto table = ( ld_page_table_t* )map_temporary( table_phys, PAGE_SIZE );
   // handle error
   if ( ! table ) {
     #if defined( PRINT_MM_VIRT )

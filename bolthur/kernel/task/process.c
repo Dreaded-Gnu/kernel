@@ -472,11 +472,9 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "Clearing mailbox stuff\r\n" )
     #endif
-    // unmap if existing
-    virt_unmap_address( forked->virtual_context, proc->rpc_mailbox_virt, true );
-    // reset properties
-    forked->rpc_mailbox = 0;
-    forked->rpc_mailbox_virt = 0;
+    // get mailbox and mailbox virtual
+    forked->rpc_mailbox = virt_get_mapped_address_in_context( forked->virtual_context, proc->rpc_mailbox_virt );
+    forked->rpc_mailbox_virt = proc->rpc_mailbox_virt;
   }
   // copy rpc handler and rpc ready flag
   forked->rpc_handler = proc->rpc_handler;

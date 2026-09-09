@@ -157,16 +157,19 @@ response_t dwhci_prepare_channel(
         entry->packet_size, entry->packets_to_transfer )
     #endif
   }
-  // calculate target frame
-  const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
-  const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
-  const uint32_t current_uframe = frame_number & 0x7;
-  const uint32_t current_linear_uframe = current_frame * 8 + current_uframe;
-  const uint32_t target_linear_uframe = current_linear_uframe + 1;
-  const uint32_t target_frame = ( target_linear_uframe / 8 ) & 0x7FF;
-  // unset and set odd frame depending on target frame
-  characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
-  characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame & 1 );
+  // set odd frame only for pollings
+  if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
+    // calculate target frame
+    const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
+    const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
+    const uint32_t current_uframe = frame_number & 0x7;
+    const uint32_t current_linear_uframe = current_frame * 8 + current_uframe;
+    const uint32_t target_linear_uframe = current_linear_uframe + 1;
+    const uint32_t target_frame = ( target_linear_uframe / 8 ) & 0x7FF;
+    // unset and set odd frame depending on target frame
+    characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
+    characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame & 1 );
+  }
   // write characteristics
   mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ), characteristic );
   // write split ctrl
@@ -636,36 +639,32 @@ response_t dwhci_channel_send_async_stop_channel( channel_queue_entry_t* entry, 
     }
   }
   // start stop channel by setting enable and disable
-  if (
-    (
-      ! ( entry->transfer_status & LIBUSB_TRANSFER_ERROR_HALT )
-      || DWHCI_QUEUE_CANCEL == entry->status
-    ) && ! free_channel
-  ) {
-    //#if defined( DWHCI_ENABLE_DEBUG )
+  if ( DWHCI_QUEUE_CANCEL == entry->status && ! free_channel ) {
+    #if defined( DWHCI_ENABLE_DEBUG )
       EARLY_STARTUP_PRINT( "Channel not halted, halting now: %#x / %d\r\n", entry->transfer_status, entry->channel )
       EARLY_STARTUP_PRINT( "Status = %d\r\n", entry->status )
-    //#endif
-    // enable interrupts in mask
-    mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ), (
-      HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
-      | HCD_CHANNEL_INTERRUPT_HALT
-      | HCD_CHANNEL_INTERRUPT_ERROR_MASK
-      | HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT
-      | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
-      | HCD_CHANNEL_INTERRUPT_NOT_YET
-    ) );
-    // enable channel interrupt
-    mmio_write( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK, mmio_read( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK ) | 1U << entry->channel );
+      EARLY_STARTUP_PRINT( "cipt = %#x\r\n", PERIPHERAL_DWHCI_HOST_CHAN_INT( entry->channel ) )
+    #endif
     // read characteristics and set enable / disable
-    mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) ) | (
-      HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 ) | HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 ) ) );
-    // set status to wait for halt if not freeing the channel
-    if ( DWHCI_QUEUE_CANCEL != entry->status ) {
-      // save current status as previous status
-      entry->previous_status = entry->status;
-      // set to wait for halt
-      entry->status = DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT;
+    uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+    if ( characteristic & HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 ) ) {
+      // enable interrupts in mask
+      mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ), (
+        HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
+        | HCD_CHANNEL_INTERRUPT_HALT
+        | HCD_CHANNEL_INTERRUPT_ERROR_MASK
+        | HCD_CHANNEL_INTERRUPT_ACKNOWLEDGEMENT
+        | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+        | HCD_CHANNEL_INTERRUPT_NOT_YET
+      ) );
+      // enable channel interrupt
+      mmio_write( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK, mmio_read( PERIPHERAL_DWHCI_HOST_ALLCHAN_INT_MASK ) | 1U << entry->channel );
+      characteristic |= HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
+      characteristic |= HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
+      mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+    } else {
+      entry->status = DWHCI_QUEUE_CANCEL_DONE;
+      return dwhci_channel_async_continue( entry );
     }
   }
   // free channel if set
@@ -770,22 +769,6 @@ response_t dwhci_channel_send_async_data( channel_queue_entry_t* entry ) {
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Starting data request\r\n" )
   #endif
-  // halt channel if necessary
-  response_t result = dwhci_channel_send_async_stop_channel( entry, false );
-  // handle error
-  if ( HCD_RESPONSE_OK != result ) {
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "Unable to prepare dma for channel\r\n" )
-    #endif
-    // return result
-    return result;
-  }
-  // handle channel in wait for halt
-  if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
-    // return success
-    return HCD_RESPONSE_OK;
-  }
   // reset transfer status
   entry->previous_transfer_status = entry->transfer_status;
   entry->transfer_status = 0;
@@ -806,7 +789,7 @@ response_t dwhci_channel_send_async_data( channel_queue_entry_t* entry ) {
   // set buffer size
   entry->buffer_size_to_transfer = entry_data->buffer_length - entry->buffer_offset;
   // prepare dma
-  result = dwhci_channel_prepare_dma( entry );
+  response_t result = dwhci_channel_prepare_dma( entry );
   // handle error
   if ( HCD_RESPONSE_OK != result ) {
     // debug output
@@ -887,22 +870,6 @@ response_t dwhci_channel_send_async_ack( channel_queue_entry_t* entry ) {
       entry_data->last_transfer = entry_data->buffer_length;
     }
   }
-  // halt channel if necessary
-  response_t result = dwhci_channel_send_async_stop_channel( entry, false );
-  // handle error
-  if ( HCD_RESPONSE_OK != result ) {
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "Unable to prepare dma for channel\r\n" )
-    #endif
-    // return result
-    return result;
-  }
-  // handle channel in wait for halt
-  if ( entry->status == DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT ) {
-    // return success
-    return HCD_RESPONSE_OK;
-  }
   // reset transfer status
   entry->previous_transfer_status = entry->transfer_status;
   entry->transfer_status = 0;
@@ -920,7 +887,7 @@ response_t dwhci_channel_send_async_ack( channel_queue_entry_t* entry ) {
   // set buffer size
   entry->buffer_size_to_transfer = 0;
   // prepare dma
-  result = dwhci_channel_prepare_dma( entry );
+  response_t result = dwhci_channel_prepare_dma( entry );
   // handle error
   if ( HCD_RESPONSE_OK != result ) {
     // debug output
@@ -982,42 +949,6 @@ response_t dwhci_channel_send_async_done( channel_queue_entry_t* entry ) {
       EARLY_STARTUP_PRINT( "Warning non zero status transfer: %"PRIu32"\r\n", entry->transferred )
     #endif
   }
-  // stop transmission
-  const response_t result = dwhci_channel_send_async_stop_channel( entry, false );
-  if ( HCD_RESPONSE_OK != result ) {
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "Unable to stop channel\r\n")
-    #endif
-    // return result
-    return result;
-  }
-  if ( DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT == entry->status ) {
-    // set previous state to done halt
-    entry->previous_status = DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT;
-    // debug output
-    #if defined( DWHCI_ENABLE_DEBUG )
-      EARLY_STARTUP_PRINT( "Waiting for channel stop\r\n")
-    #endif
-    // return result
-    return HCD_RESPONSE_OK;
-  }
-  // reset transfer status
-  entry->previous_transfer_status = entry->transfer_status;
-  entry->transfer_status = 0;
-  // force halt done
-  entry->status = DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT;
-  // continue with halt
-  return dwhci_channel_async_continue( entry );
-}
-
-/**
- * @fn response_t dwhci_channel_send_async_done_halt(channel_queue_entry_t*)
- * @brief done halt callback either called directly or after channel halt
- * @param entry
- * @return
- */
-response_t dwhci_channel_send_async_done_halt( channel_queue_entry_t* entry ) {
   // free channel
   response_t result = dwhci_channel_send_async_stop_channel( entry, true );
   // handle error
@@ -1102,7 +1033,6 @@ response_t dwhci_channel_send_async_done_halt( channel_queue_entry_t* entry ) {
   // continue with next
   return dwhci_continue_next( nullptr );
 }
-
 
 /**
  * @fn response_t dwhci_channel_send_cancel(channel_queue_entry_t*)
@@ -1222,8 +1152,6 @@ response_t dwhci_channel_async_continue( channel_queue_entry_t* entry ) {
       return dwhci_channel_send_async_ack( entry );
     case DWHCI_QUEUE_CHANNEL_STATUS_DONE:
       return dwhci_channel_send_async_done( entry );
-    case DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT:
-      return dwhci_channel_send_async_done_halt( entry );
     // polling related
     case DWHCI_QUEUE_POLL_STATUS_DATA:
       return dwhci_channel_poll_async_data( entry );

@@ -103,8 +103,8 @@ AC_DEFUN([BOLTHUR_KERNEL_SET_FLAG], [
   AX_APPEND_COMPILE_FLAGS([-Wno-builtin-declaration-mismatch])
   # generic
   AX_APPEND_COMPILE_FLAGS([-fno-exceptions -nodefaultlibs -std=c23])
-  AX_APPEND_COMPILE_FLAGS([-fomit-frame-pointer -fno-builtin])
-  AX_APPEND_COMPILE_FLAGS([-ffreestanding -fno-common])
+  AX_APPEND_COMPILE_FLAGS([-fomit-frame-pointer -ffreestanding -fno-common -fno-builtin])
+  AX_APPEND_COMPILE_FLAGS([-fno-tree-loop-distribute-patterns -mno-unaligned-access])
   # FIXME: FIND A WAY TO ADD -Wanalyzer-too-complex
   AX_APPEND_COMPILE_FLAGS([-fanalyzer])
 

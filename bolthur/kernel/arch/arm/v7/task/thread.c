@@ -432,7 +432,7 @@ bool task_thread_push_arguments(
     return false;
   }
   // get top stack of temporary and user
-  uintptr_t rsp = stack_tmp  + STACK_SIZE - alignof( max_align_t );
+  uintptr_t rsp = stack_tmp + STACK_SIZE - alignof( max_align_t );
   uintptr_t user_rsp = thread->stack_virtual  + STACK_SIZE - alignof( max_align_t );
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "rsp = %#"PRIxPTR", user_rsp = %#"PRIxPTR"\r\n", rsp, user_rsp )

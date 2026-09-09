@@ -47,8 +47,6 @@ typedef enum {
   DWHCI_QUEUE_CHANNEL_STATUS_DATA,
   DWHCI_QUEUE_CHANNEL_STATUS_ACK,
   DWHCI_QUEUE_CHANNEL_STATUS_DONE,
-  DWHCI_QUEUE_CHANNEL_STATUS_WAIT_FOR_HALT,
-  DWHCI_QUEUE_CHANNEL_STATUS_DONE_HALT,
 
   DWHCI_QUEUE_POLL_STATUS_PENDING,
   DWHCI_QUEUE_POLL_STATUS_DATA,
@@ -165,7 +163,6 @@ response_t dwhci_channel_send_async_setup( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_data( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_ack( channel_queue_entry_t* );
 response_t dwhci_channel_send_async_done( channel_queue_entry_t* );
-response_t dwhci_channel_send_async_done_halt( channel_queue_entry_t* );
 response_t dwhci_channel_send_cancel( channel_queue_entry_t* );
 response_t dwhci_channel_send_cancel_done( channel_queue_entry_t* );
 response_t dwhci_channel_async_continue( channel_queue_entry_t* );

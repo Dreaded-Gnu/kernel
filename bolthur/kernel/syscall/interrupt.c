@@ -124,37 +124,3 @@ void syscall_interrupt_release( void* context ) {
   // return success
   syscall_populate_success( context, 0 );
 }
-
-/**
- * @fn void syscall_interrupt_handled(void*)
- * @brief Interrupt handled syscall
- * @param context
- */
-void syscall_interrupt_handled( void* context ) {
-  // debug output
-  #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT(
-      "syscall_interrupt_handled() from %d / %d\r\n",
-      task_thread_current_thread->process->id, task_thread_current_thread->id
-    )
-  #endif
-  // check for correct state for rpc end
-  if ( ! task_thread_current_thread->handling_interrupt ) {
-    // debug output
-    #if defined( PRINT_SYSCALL )
-      DEBUG_OUTPUT( "Not handling an interrupt\r\n" )
-    #endif
-    // populate success
-    syscall_populate_success( context, 0 );
-    // skip rest
-    return;
-  }
-  // debug output
-  #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT( "Disabling handling interrupt flag\r\n" )
-  #endif
-  // reset flag
-  task_thread_current_thread->handling_interrupt = false;
-  // populate success
-  syscall_populate_success( context, 0 );
-}

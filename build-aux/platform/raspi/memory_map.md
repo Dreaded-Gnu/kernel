@@ -5,7 +5,7 @@
 ```text
 user area:
   0x00000000 - 0x7FFFFFFF => user process space
-
+  xxxxxxxxxx - 0x7FFFF000 => downwards growing thread stacks
 kernel area:
   0x80000000 - 0x9FFFFFFF => unused area
   0xA0000000 - 0xAFFFFFFF => rpc pool area

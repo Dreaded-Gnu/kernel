@@ -333,10 +333,10 @@ static void attach_set_address_finished(
   attach_context->device->number = attach_context->address;
   // debug output
   #if defined( USBD_ENABLE_OUTPUT )
-    EARLY_STARTUP_PRINT( "delaying 2 milliseconds according to specs\r\n" )
+    EARLY_STARTUP_PRINT( "delaying 10ß milliseconds according to specs\r\n" )
   #endif
   // delay
-  delay_us( 50000 );
+  delay_us( 100000 );
   // re-read device descriptor
   const int result = usbd_descriptor_read_device(
     attach_context->device,

@@ -32,10 +32,10 @@
 
 #define CPSR_MODE_MASK 0x1F
 
-#define CPSR_THUMB 1 << 5
-#define CPSR_FIQ_INHIBIT 1 << 6
-#define CPSR_IRQ_INHIBIT 1 << 7
-#define CPSR_ASYNC_ABORT_INHIBIT 1 << 8
+#define CPSR_THUMB 1U << 5
+#define CPSR_FIQ_INHIBIT 1U << 6
+#define CPSR_IRQ_INHIBIT 1U << 7
+#define CPSR_ASYNC_ABORT_INHIBIT 1U << 8
 
 #define PC_OFFSET 60
 #define SPSR_OFFSET 64
@@ -58,18 +58,19 @@
 #define SYS_CTRL_REG_ENABLE_BRANCH_PREDICTION 1 << 11
 #define SYS_CTRL_REG_ENABLE_INSTRUCTION_CACHE 1 << 12
 
+#if defined( ARM_CPU_HAS_NEON )
+  #define CPU_CONTEXT_WORD_SIZE 82
+#else
+  #define CPU_CONTEXT_WORD_SIZE 17
+#endif
+
 #ifndef ASSEMBLER_FILE
   #include "../../../debug/debug.h"
   #include "../../../lib/inttypes.h"
   /**
    * @brief CPU register context
    */
-  typedef union __packed {
-    #if defined( ARM_CPU_HAS_NEON )
-      uint32_t raw[ 82 ];
-    #else
-      uint32_t raw[ 17 ];
-    #endif
+  typedef union {
     struct {
       /* general purpose register */
       uint32_t r0;
@@ -91,9 +92,10 @@
       uint32_t spsr;
       #if defined( ARM_CPU_HAS_NEON )
         uint32_t fpscr;
-        uint64_t neon[ 32 ];
+        uint32_t neon[ 64 ];
       #endif
     } reg;
+    uint32_t raw[ CPU_CONTEXT_WORD_SIZE ];
   } cpu_register_context_t;
 
   /**

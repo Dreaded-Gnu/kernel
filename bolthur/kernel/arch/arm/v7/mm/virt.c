@@ -581,7 +581,7 @@ bool virt_is_mapped_in_context( virt_context_t* ctx, uintptr_t addr ) {
  */
 uint64_t virt_get_mapped_address_in_context(
   virt_context_t* ctx,
-  uintptr_t addr
+  const uintptr_t addr
 ) {
   // check context
   if ( ! ctx ) {

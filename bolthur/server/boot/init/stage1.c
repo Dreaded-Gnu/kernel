@@ -237,7 +237,7 @@ void init_stage1( void ) {
   _syscall_rpc_wait_for_ready( VFS_DAEMON_ID );
   // wait for vfs to be ready
   #if defined( BOOT_ENABLE_OUTPUT )
-    EARLY_STARTUP_PRINT( "waiting for vfs and dev!\r\n" )
+    EARLY_STARTUP_PRINT( "waiting for vfs!\r\n" )
   #endif
   vfs_wait_for_path( ":/vfs" );
   // enough to wait here for ramdisk and authentication, since both need dev server

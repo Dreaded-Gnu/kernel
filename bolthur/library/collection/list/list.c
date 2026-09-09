@@ -372,14 +372,12 @@ void* list_pop_back_data( list_manager_t* list ) {
  * @param list list to use
  */
 void list_print( list_manager_t* list ) {
-  list_item_t* current;
-
   // handle invalid
   if ( !list ) {
     return;
   }
   // populate current
-  current = list->first;
+  const list_item_t* current = list->first;
 
   // loop through list until end
   while ( current ) {
@@ -496,6 +494,68 @@ bool list_push_after_data( struct list_manager* list, void* after, void* data ) 
 }
 
 /**
+ * @fn static bool list_remove_item_head(list_manager_t*)
+ * @brief Helper to remove item from head
+ * @param list
+ * @return
+ */
+static bool list_remove_item_head( list_manager_t* list ) {
+  if ( ! list->first ) {
+    return false;
+  }
+  list->first = list->first->next;
+  if ( list->first ) {
+    list->first->previous = nullptr;
+  } else {
+    list->last = nullptr;
+  }
+  return true;
+}
+
+/**
+ * @fn static bool list_remove_item_head(list_manager_t*)
+ * @brief Helper to remove item from tail
+ * @param list
+ * @return
+ */
+static bool list_remove_item_tail( list_manager_t* list ) {
+  if ( ! list->last ) {
+    return false;
+  }
+  list->last = list->last->previous;
+  if ( list->last ) {
+    list->last->next = nullptr;
+  } else {
+    list->first = nullptr;
+  }
+  return true;
+}
+
+/**
+ * @fn static bool list_remove_item_internal(list_manager_t*, list_item_t*)
+ * @brief Helper to remove item internally
+ * @param list
+ * @param node
+ * @return
+ */
+static bool list_remove_item_internal( list_manager_t* list, list_item_t* node ) {
+  if ( ! list || ! node ) {
+    return false;
+  }
+  bool result = false;
+  if ( node == list->first ) {
+    result = list_remove_item_head( list );
+  } else if ( node == list->last ) {
+    result = list_remove_item_tail( list );
+  } else {
+    node->previous->next = node->next;
+    node->next->previous = node->previous;
+    result = true;
+  }
+  return result;
+}
+
+/**
  * @fn bool list_remove_item(list_manager_t*, list_item_t*, bool)
  * @brief Remove list item
  *
@@ -506,31 +566,16 @@ bool list_push_after_data( struct list_manager* list, void* after, void* data ) 
  * @return false
  */
 bool list_remove_item( list_manager_t* list, list_item_t* item, const bool cleanup ) {
-  // handle invalid parameter
-  if ( !list || !item ) {
-    return false;
-  }
-  // set previous of next
-  if ( item->next ) {
-    item->next->previous = item->previous;
-  }
-  // set next of previous
-  if ( item->previous ) {
-    item->previous->next = item->next;
-  }
-  // handle head removal
-  if ( item == list->first ) {
-    list->first = item->next;
-  }
-  // handle foot removal
-  if ( item == list->last ) {
-    list->last = item->previous;
+  // remove node
+  const bool result = list_remove_item_internal( list, item );
+  if ( ! result ) {
+    return result;
   }
   // free list item
   if ( cleanup ) {
     list->cleanup( item );
   } else {
-    free( item );
+    item->next = item->previous = nullptr;
   }
   return true;
 }
@@ -550,37 +595,21 @@ bool list_remove_data( list_manager_t* list, void* data, const bool cleanup ) {
   if ( !list || !data ) {
     return false;
   }
-
   // stop if not existing
   list_item_t* item = list_lookup_data( list, data );
   if ( !item ) {
     return false;
   }
-
-  // set previous of next
-  if ( item->next ) {
-    item->next->previous = item->previous;
+  // remove item
+  const bool result = list_remove_item_internal( list, item );
+  if ( ! result ) {
+    return result;
   }
-
-  // set next of previous
-  if ( item->previous ) {
-    item->previous->next = item->next;
-  }
-
-  // handle head removal
-  if ( item == list->first ) {
-    list->first = item->next;
-  }
-  // handle foot removal
-  if ( item == list->last ) {
-    list->last = item->previous;
-  }
-
   // free list item
   if ( cleanup ) {
     list->cleanup( item );
   } else {
-    free( item );
+    item->next = item->previous = nullptr;
   }
   return true;
 }
@@ -630,6 +659,38 @@ list_item_t* list_insert_data_before(
   to_insert->next = item;
   item->previous = to_insert;
   // success
+  return to_insert;
+}
+
+/**
+ * @fn list_item_t* list_insert_item_before(list_manager_t*, list_item_t*, list_item_t*)
+ * @brief Wrapper to insert list item before specific item
+ * @param list list to work on
+ * @param item item where to insert before
+ * @param to_insert item to insert
+ * @return
+ */
+list_item_t* list_insert_item_before( list_manager_t* list, list_item_t* item, list_item_t* to_insert ) {
+  if ( ! list || ! item || ! to_insert ) {
+    return nullptr;
+  }
+  if ( list->first == item ) {
+    list->first->previous = to_insert;
+    to_insert->next = list->first;
+    list->first = to_insert;
+    return to_insert;
+  }
+  // cache previous
+  list_item_t* previous = item->previous;
+  // set next of previous
+  previous->next = to_insert;
+  // set previous of to insert
+  to_insert->previous = previous;
+  // set next of to insert
+  to_insert->next = item;
+  // set previous of item
+  item->previous = to_insert;
+  // return node
   return to_insert;
 }
 

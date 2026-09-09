@@ -192,6 +192,8 @@
 #define HCD_DWHCI_CHAN_CHARACTER_TYPE( val ) ( ( uint32_t )( ( val ) & 0x3 ) << 18 )
 #define HCD_DWHCI_CHAN_CHARACTER_PACKETS_PER_FRAME( val ) ( ( uint32_t )( ( val ) & 0x3 ) << 20 )
 #define HCD_DWHCI_CHAN_CHARACTER_DEVICE_ADDRESS( val ) ( ( uint32_t )( ( val ) & 0x7f ) << 22 )
+#define HCD_DWHCI_CHAN_CHARACTER_CLEAR_NAK( val ) ( ( uint32_t )( ( val ) & 0x1 ) << 26 )
+#define HCD_DWHCI_CHAN_CHARACTER_SET_NAK( val ) ( ( uint32_t )( ( val ) & 0x1 ) << 27 )
 #define HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( val ) ( ( uint32_t )( ( val & 0x1 ) << 29 ) )
 #define HCD_DWHCI_CHAN_CHARACTER_DISABLE( val ) ( ( uint32_t )( ( val ) & 0x1 ) << 30 )
 #define HCD_DWHCI_CHAN_CHARACTER_ENABLE( val ) ( ( uint32_t )( ( val ) & 0x1 ) << 31 )
@@ -210,9 +212,10 @@
 // xfer
 #define HCD_DWHCI_CHAN_XFER_SIZE_TRANSFER_SIZE_MASK 0x7ffffU
 #define HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT_MASK 0x3ffU << 19
-#define HCD_DWHCI_CHAN_XFER_SIZE_TRANSFER_SIZE( val ) ( ( val ) & 0x7ffff )
-#define HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( val ) ( ( ( val ) & 0x3ff ) << 19 )
-#define HCD_DWHCI_CHAN_XFER_SIZE_PACKET_ID( val ) ( ( ( val ) & 0x3 ) << 29 )
+#define HCD_DWHCI_CHAN_XFER_SIZE_TRANSFER_SIZE( val ) ( ( ( uint32_t )val ) & 0x7ffff )
+#define HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( val ) ( ( ( ( uint32_t )val ) & 0x3ff ) << 19 )
+#define HCD_DWHCI_CHAN_XFER_SIZE_PACKET_ID( val ) ( ( ( ( uint32_t )val ) & 0x3 ) << 29 )
+#define HCD_DWHCI_CHAN_XFER_SIZE_DO_PING( val ) ( ( ( ( uint32_t )val ) & 0x1 ) << 31 )
 
 // core ctrl stuff
 #define HCD_DWHCI_CORE_CTRL_HOST_SET_NP_ENABLE ( 1U << 10 )

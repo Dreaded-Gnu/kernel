@@ -127,6 +127,15 @@ rpc_backup_t* rpc_backup_create(
     return nullptr;
   }
   const uint64_t t_after_cpu_pool_pop = timer_get_current_tick_value();
+  // load cpu into cache before copying it
+  const uint64_t t_before_pure_cpu_to_cache = timer_get_current_tick_value();
+  auto const ptr = ( const uint8_t* )cpu->raw;
+  constexpr size_t total_size = sizeof( uint32_t ) * CPU_CONTEXT_WORD_SIZE;
+  constexpr size_t cache_size = 32;
+  for ( size_t offset = 0; offset < total_size; offset += cache_size ) {
+    __builtin_prefetch( ptr + offset, 0, 3 );
+  }
+  const uint64_t t_after_pure_cpu_to_cache = timer_get_current_tick_value();
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT( "Reserved backup cpu context: %p\r\n", backup->context )
@@ -258,6 +267,7 @@ rpc_backup_t* rpc_backup_create(
     DEBUG_OUTPUT( "t_after_thread_look_up - t_before_thread_look_up = %"PRIu64"\r\n", t_after_thread_look_up - t_before_thread_look_up )
     DEBUG_OUTPUT( "t_after_rpc_pool_pop - t_before_rpc_pool_pop = %"PRIu64"\r\n", t_after_rpc_pool_pop - t_before_rpc_pool_pop )
     DEBUG_OUTPUT( "t_after_cpu_pool_pop - t_before_cpu_pool_pop = %"PRIu64"\r\n", t_after_cpu_pool_pop - t_before_cpu_pool_pop )
+    DEBUG_OUTPUT( "t_after_pure_cpu_to_cache - t_before_pure_cpu_to_cache = %"PRIu64"\r\n", t_after_pure_cpu_to_cache - t_before_pure_cpu_to_cache )
     DEBUG_OUTPUT( "t_after_cpu_copy - t_before_cpu_copy = %"PRIu64"\r\n", t_after_cpu_copy - t_before_cpu_copy )
     DEBUG_OUTPUT( "t_after_data_queue - t_before_data_queue = %"PRIu64"\r\n", t_after_data_queue - t_before_data_queue )
     DEBUG_OUTPUT( "t_after_thread_backup - t_before_thread_backup = %"PRIu64"\r\n", t_after_thread_backup - t_before_thread_backup )

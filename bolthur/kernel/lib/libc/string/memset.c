@@ -39,58 +39,43 @@ void* memset( void* buf, const int value, size_t size ) {
   #endif
   auto u8_buf = ( uint8_t* )buf;
   const uint8_t u8_value = ( uint8_t )value;
-  // handle both have same unalignment
-  if ( BUFFER_UNALIGNED( u8_buf ) == BUFFER_UNALIGNED( u8_value ) ) {
-    // set until alignment fits
-    while( BUFFER_UNALIGNED( u8_buf ) ) {
-      // set if not reached end
-      if ( size-- ) {
-        *u8_buf++ = u8_value;
-        // return buf if end reached
-      } else {
-        return buf;
-      }
+  // set until alignment fits
+  while( BUFFER_UNALIGNED( u8_buf ) ) {
+    // set if not reached end
+    if ( size-- ) {
+      *u8_buf++ = u8_value;
+      // return buf if end reached
+    } else {
+      return buf;
     }
-    // set in 8 byte steps as it's now aligned
-    if ( ! SIZE_TOO_SMALL( size ) ) {
-      // prepare value for set
-      const uint64_t u64_value = ( uint64_t )u8_value << 56
-        | ( uint64_t )u8_value << 48
-        | ( uint64_t )u8_value << 40
-        | ( uint64_t )u8_value << 32
-        | ( uint64_t )u8_value << 24
-        | ( uint64_t )u8_value << 16
-        | ( uint64_t )u8_value << 8
-        | ( uint64_t )u8_value;
-      // set pointer
-      auto u64_buf = ( uint64_t* )u8_buf;
-      // set as much as possible at once
-      while ( size >= U64_BLOCK_SIZE * 4 ) {
-        *u64_buf++ = u64_value;
-        *u64_buf++ = u64_value;
-        *u64_buf++ = u64_value;
-        *u64_buf++ = u64_value;
-        size -= 4 * U64_BLOCK_SIZE;
-      }
-      // set remaining 64bit blocks
-      while ( size >= U64_BLOCK_SIZE ) {
-        *u64_buf++ = u64_value;
-        size -= U64_BLOCK_SIZE;
-      }
-      u8_buf = ( uint8_t* )u64_buf;
+  }
+  // set in 8 byte steps as it's now aligned
+  if ( ! SIZE_TOO_SMALL( size ) ) {
+    // prepare value for set
+    const uint64_t u64_value = ( uint64_t )u8_value << 56
+      | ( uint64_t )u8_value << 48
+      | ( uint64_t )u8_value << 40
+      | ( uint64_t )u8_value << 32
+      | ( uint64_t )u8_value << 24
+      | ( uint64_t )u8_value << 16
+      | ( uint64_t )u8_value << 8
+      | ( uint64_t )u8_value;
+    // set pointer
+    auto u64_buf = ( uint64_t* )u8_buf;
+    // set as much as possible at once
+    while ( size >= U64_BLOCK_SIZE * 4 ) {
+      *u64_buf++ = u64_value;
+      *u64_buf++ = u64_value;
+      *u64_buf++ = u64_value;
+      *u64_buf++ = u64_value;
+      size -= 4 * U64_BLOCK_SIZE;
     }
-  // it's not possible to get both aligned
-  } else {
-    // copy in word sizes
-    while ( size >= U32_BLOCK_SIZE ) {
-      // copy 32 bit
-      *u8_buf++ = u8_value;
-      *u8_buf++ = u8_value;
-      *u8_buf++ = u8_value;
-      *u8_buf++ = u8_value;
-      // subtract size
-      size -= U32_BLOCK_SIZE;
+    // set remaining 64bit blocks
+    while ( size >= U64_BLOCK_SIZE ) {
+      *u64_buf++ = u64_value;
+      size -= U64_BLOCK_SIZE;
     }
+    u8_buf = ( uint8_t* )u64_buf;
   }
   // set rest
   while( size-- ) {

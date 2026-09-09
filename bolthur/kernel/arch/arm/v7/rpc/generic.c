@@ -21,8 +21,6 @@
 #include "../cpu.h"
 #include "../../../../mm/virt.h"
 #include "../../../../rpc/generic.h"
-#include "../../cache.h"
-#include "../../../../cache.h"
 #include "../../../../syscall.h"
 #include "../../../../timer.h"
 #include "../../../../rpc/backup.h"
@@ -59,7 +57,6 @@ bool rpc_generic_restore( task_thread_t* thread ) {
     // return error
     return false;
   }
-  // restore cpu registers
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT(
@@ -70,6 +67,7 @@ bool rpc_generic_restore( task_thread_t* thread ) {
     DUMP_REGISTER( thread->current_context )
     DEBUG_OUTPUT( "process id = %d\r\n", thread->process->id )
   #endif
+  // restore cpu registers
   memcpy(
     thread->current_context,
     backup->context,
@@ -119,7 +117,7 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   #endif
   // finally remove found entry
   const bool was_squeezed_in = backup->squeezed_in;
-  list_remove_data( thread->process->rpc_queue, backup, true );
+  list_remove_item( thread->process->rpc_queue, backup->list_item, true );
   // get first list item
   auto item = thread->process->rpc_queue->first;
   // initialize next backup
@@ -160,8 +158,8 @@ bool rpc_generic_restore( task_thread_t* thread ) {
       // set thread state
       next->thread_state = thread->state;
       // copy over thread state data
-      next->thread->state_data.data_ptr = thread->state_data.data_ptr;
-      next->thread->state_data.data_size = thread->state_data.data_size;
+      next->thread_state_data.data_ptr = thread->state_data.data_ptr;
+      next->thread_state_data.data_size = thread->state_data.data_size;
     }
     // debug output
     #if defined( PRINT_RPC )
@@ -302,11 +300,10 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
       #endif
       return false;
     }
-    backup->list_item = nullptr;
     t_after_backup_remove = timer_get_current_tick_value();
     t_before_squeeze_in_backup = timer_get_current_tick_value();
     // insert before active item
-    backup->list_item = list_insert_data_before( backup->thread->process->rpc_queue, active_item, backup );
+    backup->list_item = list_insert_item_before( backup->thread->process->rpc_queue, active_item, backup->list_item );
     if ( ! backup->list_item ) {
       #if defined( PRINT_RPC )
         DEBUG_OUTPUT( "Unable to insert backup before active\r\n" )
@@ -318,12 +315,13 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
     // set active to inactive
     active->active = false;
     // manipulate states and stuff of backup
-    backup->thread_state = TASK_THREAD_STATE_RPC_HALT_SWITCH == backup->thread->state
-      ? TASK_THREAD_STATE_RPC_QUEUED : backup->thread->state;
+    backup->thread_state = backup->thread->state;
+    if ( TASK_THREAD_STATE_RPC_HALT_SWITCH == backup->thread_state ) {
+      backup->thread_state = TASK_THREAD_STATE_RPC_QUEUED;
+    }
+    backup->state_to_use = backup->thread->state;
     if ( backup->thread_state == TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN ) {
       backup->state_to_use = TASK_THREAD_STATE_RPC_QUEUED;
-    } else {
-      backup->state_to_use = backup->thread->state;
     }
     backup->thread_state_data.data_ptr = backup->thread->state_data.data_ptr;
     backup->thread_state_data.data_size = backup->thread->state_data.data_size;
@@ -362,7 +360,6 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
   #endif
   const uintptr_t sp = cpu->reg.sp;
   const uint32_t fpscr = cpu->reg.fpscr;
-  memset( cpu, 0, sizeof( cpu_register_context_t ) );
   // populate parameters
   cpu->reg.r0 = backup->type;
   cpu->reg.r1 = ( size_t )backup->source->process->id;
@@ -370,6 +367,7 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
   cpu->reg.r3 = backup->origin_data_id;
   // set pc with handler
   cpu->reg.pc = proc->rpc_handler & ~1U;
+  cpu->reg.lr = 0;
   cpu->reg.sp = sp;
   cpu->reg.fpscr = fpscr;
   // align stack to max align

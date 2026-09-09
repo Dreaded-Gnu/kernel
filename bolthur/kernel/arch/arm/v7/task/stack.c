@@ -20,9 +20,11 @@
 #include "../../../../task/stack.h"
 #include "../../stack.h"
 
+#include "../../../../debug/debug.h"
+
+#define THREAD_STACK_MAX_SIZE 0x200000
 #if defined( ELF32 )
-  #define THREAD_STACK_START_ADDRESS 0x00001000
-  #define THREAD_STACK_END_ADDRESS 0x00200000 - STACK_SIZE
+  #define THREAD_STACK_START_ADDRESS 0x7FFFF000
 #elif defined( ELF64 )
   #error "Unsupported"
 #endif
@@ -30,52 +32,25 @@
 /**
  * @fn uintptr_t task_stack_manager_next(task_stack_manager_t*)
  * @brief Get next virtual stack address
- *
  * @param manager
  * @return uintptr_t
- *
- * @todo revise stack handling
  */
 uintptr_t task_stack_manager_next( task_stack_manager_t* manager ) {
   // check parameter
   if ( ! manager ) {
     return 0;
   }
-
-  // determine min and max
-  uintptr_t current = THREAD_STACK_START_ADDRESS;
-  uintptr_t min_stack = current;
-  uintptr_t max_stack = THREAD_STACK_END_ADDRESS;
-
-  // get min and max nodes
-  avl_node_t* min = avl_get_min( manager->tree->root );
-  avl_node_t* max = avl_get_max( manager->tree->root );
-
-  // handle empty
-  if ( ! min && ! max ) {
-    return current;
+  // cache current
+  uintptr_t current_top = THREAD_STACK_START_ADDRESS - STACK_SIZE;
+  // get min nodes
+  const avl_node_t* min = avl_get_min( manager->tree->root );
+  if ( min ) {
+    current_top = ( uintptr_t )min->data - THREAD_STACK_MAX_SIZE - STACK_SIZE;
   }
-
-  // find possible hole
-  while ( min != max ) {
-    // try to find
-    avl_node_t* tmp = avl_find_by_data( manager->tree, ( void* )current );
-    // not found => free
-    if ( ! tmp ) {
-      return current;
-    }
-    // next to probe
-    current += STACK_SIZE;
-  }
-
-  // check address
-  if (
-    current < min_stack
-    || current > max_stack
-  ) {
+  // check if it is mapped
+  if ( virt_is_mapped_range( current_top - THREAD_STACK_MAX_SIZE + STACK_SIZE, THREAD_STACK_MAX_SIZE ) ) {
     return 0;
   }
-
   // return new one
-  return current + STACK_SIZE;
+  return current_top;
 }
