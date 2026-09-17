@@ -39,16 +39,15 @@ IMPORT( task_thread_current_thread )
 .endm
 
 // ensure correct stack alignment before calling any c function
-.macro stack_wind register:req, additional:req, stack:req
-  // test alignment
-  and \register, \stack, #8
-  sub \stack, \register
-  push { \register, \additional }
+.macro stack_wind register:req, stack:req
+  // calculate alignment offset
+  and \register, \stack, #4
+  // adjust stack
+  sub \stack, \stack, \register
 .endm
 
 // restore stack possibly changed due to stack alignment
-.macro stack_unwind register:req, additional:req, stack:req
-  pop { \register, \additional }
+.macro stack_unwind register:req, stack:req
   add \stack, \register
 .endm
 
@@ -187,17 +186,17 @@ _\name\()_exit_unprivileged:
 // privileged exit
 _\name\()_exit_privileged:
   mov sp, \stack
-  // load old pc
+  // load old pc and push back onto stack
   ldr r0, [ sp, #PC_OFFSET ]
-  // push back onto stack
   str r0, [ sp, #PRIVILEGED_PC_OFFSET ]
-  // load old pc
+  // load old spsr and push back onto stack
   ldr r0, [ sp, #SPSR_OFFSET ]
-  // push back onto stack
   str r0, [ sp, #PRIVILEGED_SPSR_OFFSET ]
-  // restore previous state
+  // restore lr
+  ldr lr, [ sp, #LR_OFFSET ]
+  // restore previous state of fpu
   pop_fpu_register sp
-  // restore register without push back
+  // restore previous register
   ldm sp, { r0 - r12 }
   // correct stack pointer by removing kernel stack frame
   add sp, #STACK_FRAME_SIZE
@@ -215,31 +214,22 @@ _\name\()_exit_finished:
   // push register
   push_register \name, \mode, \fixup
 
-  push { r4 }
   mov r4, r1
+  stack_wind r5, sp
+  push { r4, r5 }
 
   // remote debugging
   #if defined( REMOTE_DEBUG )
     .ifnc \nested, all
-      // ensure stack alignment
-      stack_wind r0, r1, sp
       // disable  breakpoints
       bl debug_breakpoint_disable
-      // restore stack adjustments
-      stack_unwind r0, r1, sp
     .endif
   #endif
 
-  // ensure stack alignment
-  stack_wind r0, r1, sp
   // call handler routine with context parameter
   mov r0, r4
   bl \handler
-  // restore stack adjustments
-  stack_unwind r0, r1, sp
 
-  // ensure stack alignment
-  stack_wind r0, r1, sp
   // enable interrupts
   .ifc \nested, all
     cpsie iaf
@@ -257,101 +247,18 @@ _\name\()_exit_finished:
   .ifc \nested, fast
     cpsid af
   .endif
-  // restore stack adjustments
-  stack_unwind r0, r1, sp
 
   // remote debugging
   #if defined( REMOTE_DEBUG )
     .ifnc \nested, all
-      // ensure stack alignment
-      stack_wind r0, r1, sp
       // add breakpoints
       bl debug_breakpoint_enable
-      // restore stack adjustments
-      stack_unwind r0, r1, sp
     .endif
   #endif
 
+  pop { r4, r5 }
+  stack_unwind r5, sp
   mov r1, r4
-  pop { r4 }
-
-  // restore registers for return
-  pop_register \name, \mode, r1
-  // return from exception
-  rfeia sp!
-.endm
-
-
-.macro exception_handler_svc fixup:req, handler:req, mode:req, name:req, nested:req
-  // subtraction is mandatory for extraction of svc number
-  sub lr, #\fixup
-  sub sp, #8
-  str lr, [ sp, #0 ]
-  mrs lr, spsr
-  str lr, [ sp, #4 ]
-
-  // push register
-  push_register \name, \mode, \fixup
-
-  push { r4 }
-  mov r4, r1
-
-  // remote debugging
-  #if defined( REMOTE_DEBUG )
-    .ifnc \nested, all
-      // ensure stack alignment
-      stack_wind r0, r1, sp
-      // disable  breakpoints
-      bl debug_breakpoint_disable
-      // restore stack adjustments
-      stack_unwind r0, r1, sp
-    .endif
-  #endif
-
-  // ensure stack alignment
-  stack_wind r0, r1, sp
-  // call handler routine with context parameter
-  mov r0, r4
-  bl \handler
-  // restore stack adjustments
-  stack_unwind r0, r1, sp
-
-  // ensure stack alignment
-  stack_wind r0, r1, sp
-  // enable interrupts
-  .ifc \nested, all
-    cpsie iaf
-  .endif
-  .ifc \nested, fast
-    cpsie af
-  .endif
-  // handle events
-  mov r0, r4
-  bl event_handle
-  // disable interrupts
-  .ifc \nested, all
-    cpsid iaf
-  .endif
-  .ifc \nested, fast
-    cpsid af
-  .endif
-  // restore stack adjustments
-  stack_unwind r0, r1, sp
-
-  // remote debugging
-  #if defined( REMOTE_DEBUG )
-    .ifnc \nested, all
-      // ensure stack alignment
-      stack_wind r0, r1, sp
-      // add breakpoints
-      bl debug_breakpoint_enable
-      // restore stack adjustments
-      stack_unwind r0, r1, sp
-    .endif
-  #endif
-
-  mov r1, r4
-  pop { r4 }
 
   // restore registers for return
   pop_register \name, \mode, r1

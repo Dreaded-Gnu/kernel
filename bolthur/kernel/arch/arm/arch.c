@@ -32,6 +32,11 @@ void arch_init( void ) {
  * @fn void arch_halt(void)
  * @brief Halt and wait for interrupt
  */
+__no_stack_protector
 void arch_halt( void ) {
-  __asm__ __volatile__( "wfi" ::: "cc", "memory" );
+  __asm__ __volatile__(
+    "cpsie iaf\n"
+    "wfi\n"
+    "cpsid iaf\n"
+    ::: "cc", "memory" );
 }

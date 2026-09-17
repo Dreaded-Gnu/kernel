@@ -19,12 +19,10 @@
 
 #include "../../../../task/stack.h"
 #include "../../stack.h"
+#include "../../../../entry.h"
 
-#include "../../../../debug/debug.h"
-
-#define THREAD_STACK_MAX_SIZE 0x200000
 #if defined( ELF32 )
-  #define THREAD_STACK_START_ADDRESS 0x7FFFF000
+  #define THREAD_STACK_START_ADDRESS USER_AREA_END
 #elif defined( ELF64 )
   #error "Unsupported"
 #endif
@@ -41,14 +39,14 @@ uintptr_t task_stack_manager_next( task_stack_manager_t* manager ) {
     return 0;
   }
   // cache current
-  uintptr_t current_top = THREAD_STACK_START_ADDRESS - STACK_SIZE;
+  uintptr_t current_top = THREAD_STACK_START_ADDRESS;
   // get min nodes
   const avl_node_t* min = avl_get_min( manager->tree->root );
   if ( min ) {
-    current_top = ( uintptr_t )min->data - THREAD_STACK_MAX_SIZE - STACK_SIZE;
+    current_top = ( uintptr_t )min->data - THREAD_STACK_MAX_SIZE;
   }
   // check if it is mapped
-  if ( virt_is_mapped_range( current_top - THREAD_STACK_MAX_SIZE + STACK_SIZE, THREAD_STACK_MAX_SIZE ) ) {
+  if ( virt_is_mapped_range( current_top - THREAD_STACK_MAX_SIZE, THREAD_STACK_MAX_SIZE ) ) {
     return 0;
   }
   // return new one

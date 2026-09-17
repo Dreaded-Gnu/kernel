@@ -80,5 +80,5 @@ __no_stack_protector uint32_t io_in32( const uint32_t port ) {
  */
 __no_stack_protector void io_out32( const uint32_t port, const uint32_t val ) {
   *( volatile uint32_t* )( port ) = val;
-  barrier_data_mem();
+  barrier_data_sync();
 }

@@ -17,10 +17,10 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define PRINT_EXCEPTION
-
 #include "../../../../../lib/assert.h"
 #include "../../../../../lib/inttypes.h"
+#include "../../../../../task/stack.h"
+#include "../../../../../mm/phys.h"
 #if defined( REMOTE_DEBUG )
   #include "../../debug/debug.h"
 #endif
@@ -51,7 +51,7 @@ static uint32_t nested_data_abort = 0;
  * @todo trigger schedule when prefetch abort source is user thread
  * @todo panic when data abort is triggered from kernel
  */
-[[noreturn]] void vector_data_abort_handler( cpu_register_context_t* cpu ) {
+void vector_data_abort_handler( cpu_register_context_t* cpu ) {
   // nesting
   nested_data_abort++;
   assert( nested_data_abort < INTERRUPT_NESTED_MAX )
@@ -61,6 +61,38 @@ static uint32_t nested_data_abort = 0;
   #endif
   // get event origin
   const event_origin_t origin = event_determine_origin( cpu );
+  // handle user
+  if ( EVENT_ORIGIN_USER == origin ) {
+    // get faulting address
+    const uintptr_t fault = virt_data_fault_address();
+    #if defined( PRINT_EXCEPTION )
+    DEBUG_OUTPUT( "data abort while accessing %#"PRIxPTR"\r\n", fault )
+    #endif
+    // handle in user stack => extend it
+    if (
+      fault >= task_thread_current_thread->stack_virtual - THREAD_STACK_MAX_SIZE
+      && fault < task_thread_current_thread->stack_virtual
+      && fault >= task_thread_current_thread->stack_virtual - task_thread_current_thread->stack_size - PAGE_SIZE
+    ) {
+      // map down growing stack
+      if ( ! virt_map_address_random(
+        task_thread_current_thread->process->virtual_context,
+        fault,
+        VIRT_MEMORY_TYPE_NORMAL,
+        VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
+      ) ) {
+        PANIC( "Mapping failed" )
+      }
+      // increase stack size
+      task_thread_current_thread->stack_size += PAGE_SIZE;
+      // enqueue cleanup
+      event_enqueue( EVENT_INTERRUPT_CLEANUP );
+      // decrement nested counter
+      nested_data_abort--;
+      // return to thread
+      return;
+    }
+  }
   // debug output
   #if defined( PRINT_EXCEPTION )
     DEBUG_OUTPUT( "origin = %d\r\n", origin )

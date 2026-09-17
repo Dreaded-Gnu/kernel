@@ -182,7 +182,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     task_thread_try_switch_to = nullptr;
   }
 
-  bool halt_set = false;
   // loop while next thread is not set, or it's not ready
   while ( ! next_thread ) {
     // get next thread
@@ -208,11 +207,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
         #if defined( PRINT_PROCESS )
           DEBUG_OUTPUT( "No further threads to schedule to, halting\r\n" )
         #endif
-        // enable interrupts and set flag
-        if ( ! halt_set ) {
-          interrupt_enable();
-          halt_set = true;
-        }
         // wait for exception
         arch_halt();
         // again check for try to switch to is set
@@ -228,15 +222,6 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
         }
       }
     }
-  }
-  // disable interrupts again
-  if ( halt_set ) {
-    // debug output
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "Halt was active, disabling interrupts!\r\n" )
-      DUMP_REGISTER( cpu )
-    #endif
-    interrupt_disable();
   }
   // debug output
   #if defined( PRINT_PROCESS )

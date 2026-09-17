@@ -485,6 +485,9 @@ void rpc_keyboard_attach(
     bolthur_rpc_return( RPC_VFS_IOCTL, &err_response, sizeof( err_response ), nullptr, 0 );
     return;
   }
+  #if defined( KEYBOARD_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Starting to poll\r\n" )
+  #endif
   // start polling
   keyboard_start_polling( device );
   // return success

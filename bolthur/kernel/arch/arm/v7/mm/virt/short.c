@@ -717,18 +717,16 @@ uint64_t v7_short_create_table(
  */
 bool v7_short_map(
   virt_context_t* ctx,
-  uintptr_t vaddr,
+  const uintptr_t vaddr,
   uint64_t paddr,
-  virt_memory_type_t memory,
-  uint32_t page
+  const virt_memory_type_t memory,
+  const uint32_t page
 ) {
   // get page index
   uint32_t page_idx = SD_VIRTUAL_PAGE_INDEX( vaddr );
 
   // get table for mapping
-  sd_page_table_t* table = ( sd_page_table_t* )(
-    ( uintptr_t )v7_short_create_table( ctx, vaddr, 0 )
-  );
+  auto table = ( sd_page_table_t* )( ( uintptr_t )v7_short_create_table( ctx, vaddr, 0 ) );
   // handle error
   if ( ! table ) {
     return false;
@@ -767,7 +765,7 @@ bool v7_short_map(
   #endif
 
   // set page
-  table->page[ page_idx ].raw = (uint32_t)paddr & 0xFFFFF000;
+  table->page[ page_idx ].raw = ( uint32_t )paddr & 0xFFFFF000;
 
   // set attributes
   table->page[ page_idx ].data.type = SD_TBL_SMALL_PAGE;
@@ -836,10 +834,10 @@ bool v7_short_map(
   // unmap temporary
   unmap_temporary( ( uintptr_t )table, SD_TBL_SIZE );
 
-  uintptr_t min = virt_get_context_min_address( ctx );
-  uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
-  uint32_t index = PAGE_INDEX( frame );
-  uint32_t offset = PAGE_OFFSET( frame );
+  const uintptr_t min = virt_get_context_min_address( ctx );
+  const uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
+  const uint32_t index = PAGE_INDEX( frame );
+  const uint32_t offset = PAGE_OFFSET( frame );
   ctx->bitmap[ index ] |= ( 1U << offset );
 
   // return success

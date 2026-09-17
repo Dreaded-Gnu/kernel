@@ -141,7 +141,7 @@ void virt_init( void ) {
     uintptr_t initrd_end = initrd_get_end_address();
     // set start to end to map initrd following to the kernel
     start = end;
-    uintptr_t new_initrd_start = start;
+    const uintptr_t new_initrd_start = start;
     // debug output
     #if defined( PRINT_MM_VIRT )
       DEBUG_OUTPUT(

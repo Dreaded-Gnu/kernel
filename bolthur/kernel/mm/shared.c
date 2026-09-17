@@ -32,7 +32,7 @@
 /**
  * @brief Tree of shared memory items
  */
-avl_tree_t* shared_tree = nullptr;
+static avl_tree_t* shared_tree = nullptr;
 
 /**
  * @fn int32_t lookup_process(const list_item_t*, const void*)

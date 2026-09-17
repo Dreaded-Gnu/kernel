@@ -34,6 +34,7 @@
  * @param size
  */
 __attribute__((__optimize__("O3")))
+__no_sanitize
 void* memcpy( void* restrict dst, const void* restrict src, size_t size ) {
   #if defined( HAS_SANITIZER )
     kasan_check_memory( ( uintptr_t )dst, size, 1, KASAN_CALLER_PC );

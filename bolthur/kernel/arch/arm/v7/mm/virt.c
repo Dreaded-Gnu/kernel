@@ -270,7 +270,7 @@ void virt_unmap_temporary( uintptr_t addr, size_t size ) {
  * @param type context type
  * @return virt_context_t* address of context
  */
-virt_context_t* virt_create_context( virt_context_type_t type ) {
+virt_context_t* virt_create_context( const virt_context_type_t type ) {
   // check for v7 long descriptor format
   if ( ID_MMFR0_VSMA_V7_PAGING_LPAE == virt_supported_mode ) {
     virt_context_t* context = v7_long_create_context( type );
@@ -280,7 +280,7 @@ virt_context_t* virt_create_context( virt_context_type_t type ) {
     // allocate bitmap for lookup
     const uintptr_t min = virt_get_context_min_address( context );
     const uintptr_t max = virt_get_context_max_address( context );
-    context->bitmap_length = ( max - min ) / PAGE_SIZE / VIRT_PAGE_PER_ENTRY;
+    context->bitmap_length = ( max - min + PAGE_SIZE ) / PAGE_SIZE / VIRT_PAGE_PER_ENTRY;
     context->bitmap = aligned_alloc(
       sizeof( *( context->bitmap ) ),
       context->bitmap_length * sizeof( uint32_t ) );
@@ -302,7 +302,7 @@ virt_context_t* virt_create_context( virt_context_type_t type ) {
     // allocate bitmap for lookup
     const uintptr_t min = virt_get_context_min_address( context );
     const uintptr_t max = virt_get_context_max_address( context );
-    context->bitmap_length = ( max - min ) / PAGE_SIZE / VIRT_PAGE_PER_ENTRY;
+    context->bitmap_length = ( max - min + PAGE_SIZE ) / PAGE_SIZE / VIRT_PAGE_PER_ENTRY;
     context->bitmap = aligned_alloc(
       sizeof( *( context->bitmap ) ),
       context->bitmap_length * sizeof( uint32_t ) );

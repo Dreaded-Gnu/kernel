@@ -161,15 +161,9 @@ void interrupt_mask_specific( const int8_t num ) {
  */
 __no_stack_protector void interrupt_unmask_specific( const int8_t num ) {
   if ( 32 > num ) {
-    io_out32(
-      peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_1,
-      1U << num
-    );
+    io_out32( peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_1, 1U << num );
   } else if ( 64 > num ) {
-    io_out32(
-      peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_2,
-      1U << ( num - 32 )
-    );
+    io_out32( peripheral_base_get( PERIPHERAL_GPIO ) + INTERRUPT_DISABLE_IRQ_2, 1U << ( num - 32 ) );
   } else {
     PANIC( "Unsupported interrupt number!" )
   }
@@ -211,7 +205,7 @@ void interrupt_handle_possible( void* context, const bool fast ) {
           context,
           true
         );
-        pending1 &= ( ( uint32_t )interrupt_number - 1 );
+        pending1 &= ( pending1 - 1 );
       }
       // handle pending 2
       while ( pending2 ) {
@@ -222,7 +216,7 @@ void interrupt_handle_possible( void* context, const bool fast ) {
           context,
           true
         );
-        pending2 &= ( ( uint32_t )interrupt_number - 1 );
+        pending2 &= ( pending2 - 1 );
       }
     // fast interrupt handling
     } else {

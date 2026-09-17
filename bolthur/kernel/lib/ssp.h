@@ -20,8 +20,6 @@
 #ifndef _LIB_SSP_H
 #define _LIB_SSP_H
 
-#include <stdint.h>
-
 [[noreturn]] void __stack_chk_fail( void );
 
 #endif

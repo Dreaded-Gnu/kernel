@@ -64,90 +64,6 @@ static avl_node_t* insert(
 }
 
 /**
- * @fn avl_node_t find_by_data*(void*, avl_node_t*, const avl_tree_t*)
- * @brief Helper to find node within tree
- *
- * @param data data to lookup for
- * @param root root node
- * @param tree
- * @return avl_node_t*
- */
-static avl_node_t* find_by_data(
-  void* data,
-  avl_node_t* root,
-  const avl_tree_t* tree
-) {
-  // end point
-  if ( ! root || ! tree ) {
-    return nullptr;
-  }
-
-  // check result
-  const int32_t result = tree->lookup( root, data );
-  // handle match
-  if ( 0 == result ) {
-    return root;
-  }
-
-  // continue left
-  if ( -1 == result ) {
-    return find_by_data( data, root->left, tree );
-  // continue right
-  } else {
-    return find_by_data( data, root->right, tree );
-  }
-}
-
-/**
- * @fn avl_node_t find_parent_by_data*(void*, avl_node_t*, const avl_tree_t*)
- * @brief Helper to find parent node within tree
- *
- * @param data data to lookup for
- * @param root root node
- * @param tree
- * @return avl_node_t*
- */
-static avl_node_t* find_parent_by_data(
-  void* data,
-  avl_node_t* root,
-  const avl_tree_t* tree
-) {
-  // end point
-  if ( ! root || ! tree ) {
-    return nullptr;
-  }
-
-  // matching node left?
-  if (
-    root->left
-    && 0 == tree->lookup( root->left, data )
-  ) {
-    return root;
-  }
-
-  // matching node right?
-  if (
-    root->right
-    && 0 == tree->lookup( root->right, data )
-  ) {
-    return root;
-  }
-
-  const int32_t result = tree->lookup( root, data );
-
-  // continue left
-  if ( -1 == result ) {
-    return find_parent_by_data( data, root->left, tree );
-  // continue right
-  } else if ( 1 == result ) {
-    return find_parent_by_data( data, root->right, tree );
-  }
-
-  // generic else case: found node is the wanted one
-  return nullptr;
-}
-
-/**
  * @fn int32_t height(avl_node_t*)
  * @brief Calculate node height
  *
@@ -665,20 +581,26 @@ bool avl_insert_by_node( avl_tree_t* tree, avl_node_t* node ) {
  * @param data data to lookup
  * @return avl_node_t* found node or nullptr
  */
-avl_node_t* avl_find_by_data( const avl_tree_t* tree, void* data ) {
-  return find_by_data( data, tree->root, tree );
-}
-
-/**
- * @fn avl_node_t avl_find_parent_by_data*(const avl_tree_t*, void*)
- * @brief Find parent
- *
- * @param tree tree to work on
- * @param data data to lookup
- * @return avl_node_t*
- */
-avl_node_t* avl_find_parent_by_data( const avl_tree_t* tree, void* data ) {
-  return find_parent_by_data( data, tree->root, tree );
+avl_node_t* avl_find_by_data( const avl_tree_t* tree, const void* data ) {
+  // end point
+  if ( ! tree || ! tree->root ) {
+    return nullptr;
+  }
+  auto current = tree->root;
+  while ( current ) {
+    // check result
+    const int32_t result = tree->lookup( current, data );
+    // handle match
+    if ( 0 == result ) {
+      return current;
+    }
+    if ( -1 == result ) {
+      current = current->left;
+    } else {
+      current = current->right;
+    }
+  }
+  return nullptr;
 }
 
 /**
@@ -690,7 +612,7 @@ avl_node_t* avl_find_parent_by_data( const avl_tree_t* tree, void* data ) {
  */
 avl_node_t* balance( avl_node_t* node ) {
   // get balance factor
-  int32_t balance = balance_factor( node );
+  const int32_t balance = balance_factor( node );
 
   // left / right left rotation
   if ( 2 == balance ) {

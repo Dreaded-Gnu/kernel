@@ -35,7 +35,7 @@ uintptr_t kasan_shadow_memory_end = 0;
  * @param size
  * @return
  */
-uintptr_t kasan_get_poisoned_shadow_address(
+__no_sanitize __no_stack_protector uintptr_t kasan_get_poisoned_shadow_address(
   const uintptr_t addr,
   const size_t size
 ) {
@@ -83,7 +83,7 @@ uintptr_t kasan_get_poisoned_shadow_address(
  * @param val
  * @param map
  */
-void kasan_poison_shadow(
+__no_sanitize void kasan_poison_shadow(
   const uintptr_t addr,
   const size_t size,
   const uint8_t val,
@@ -128,7 +128,7 @@ void kasan_poison_shadow(
  * @param address
  * @param size
  */
-void kasan_unpoison_shadow( const uintptr_t address, const size_t size ) {
+__no_sanitize void kasan_unpoison_shadow( const uintptr_t address, const size_t size ) {
   kasan_poison_shadow(
     address,
     size & ~KASAN_SHADOW_MASK,
@@ -150,7 +150,7 @@ void kasan_unpoison_shadow( const uintptr_t address, const size_t size ) {
  * @param pc
  * @return
  */
-int kasan_check_memory(
+__no_sanitize __no_stack_protector int kasan_check_memory(
   const uintptr_t addr,
   const size_t size,
   const bool write,
@@ -189,52 +189,52 @@ void kasan_init( void ) {
   );
 }
 
-void __asan_handle_no_return( void ) {}
+__no_stack_protector void __asan_handle_no_return( void ) {}
 
-void __asan_store1_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_store1_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 1, true, KASAN_CALLER_PC );
 }
 
-void __asan_store2_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_store2_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 2, true, KASAN_CALLER_PC );
 }
 
-void __asan_store4_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_store4_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 4, true, KASAN_CALLER_PC );
 }
 
-void __asan_store8_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_store8_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 8, true, KASAN_CALLER_PC );
 }
 
-void __asan_store16_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_store16_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 16, true, KASAN_CALLER_PC );
 }
 
-void __asan_storeN_noabort( uintptr_t address, size_t size ) {
+__no_stack_protector void __asan_storeN_noabort( const uintptr_t address, const size_t size ) {
   kasan_check_memory( address, size, true, KASAN_CALLER_PC );
 }
 
-void __asan_load1_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_load1_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 1, false, KASAN_CALLER_PC );
 }
 
-void __asan_load2_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_load2_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 2, false, KASAN_CALLER_PC );
 }
 
-void __asan_load4_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_load4_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 4, false, KASAN_CALLER_PC );
 }
 
-void __asan_load8_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_load8_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 8, false, KASAN_CALLER_PC );
 }
 
-void __asan_load16_noabort( uintptr_t address ) {
+__no_stack_protector void __asan_load16_noabort( const uintptr_t address ) {
   kasan_check_memory( address, 16, false, KASAN_CALLER_PC );
 }
 
-void __asan_loadN_noabort( uintptr_t address, size_t size ) {
+__no_stack_protector void __asan_loadN_noabort( const uintptr_t address, const size_t size ) {
   kasan_check_memory( address, size, false, KASAN_CALLER_PC );
 }

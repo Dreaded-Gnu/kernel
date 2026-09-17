@@ -194,9 +194,7 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
       DEBUG_OUTPUT( "everything already prepared!\r\n" )
     #endif
     // set to active since it might got deactivated
-    if ( ! backup->active ) {
-      backup->active = true;
-    }
+    backup->active = true;
     // set current active
     backup->thread->current_active_backup = backup;
     // return success
@@ -255,7 +253,14 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
   const uint64_t t_after_block_check = timer_get_current_tick_value();
   const uint64_t t_before_interrupt_check = timer_get_current_tick_value();
   // skip enqueue in case an interrupt is handled
-  if ( backup->thread->handling_interrupt ) {
+  if (
+    backup->thread->handling_interrupt
+    || (
+      backup->thread->current_active_backup
+      && backup->thread->current_active_backup->is_interrupt
+      && ! backup->is_interrupt
+    )
+  ) {
     // debug output
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "backup->thread->handling_interrupt = %d for %d / %d\r\n",

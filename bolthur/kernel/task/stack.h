@@ -23,6 +23,8 @@
 #include "../../library/collection/avl/avl.h"
 #include "process.h"
 
+#define THREAD_STACK_MAX_SIZE 0x200000
+
 typedef struct task_stack_manager {
   avl_tree_t* tree;
 } task_stack_manager_t;

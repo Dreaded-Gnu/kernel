@@ -267,17 +267,17 @@ static uintptr_t map_temporary( uint64_t start, size_t size ) {
 
       // set address if found is 0
       if ( 0 == found_amount ) {
-          #if defined( PRINT_MM_VIRT )
-            DEBUG_OUTPUT(
-              "TEMPORARY_SPACE_START = %#x, current_table * PAGE_SIZE * 512 = %#"PRIx32", ( PAGE_SIZE * idx ) = %#"PRIx32"\r\n",
-              TEMPORARY_SPACE_START, current_table * PAGE_SIZE * 512, PAGE_SIZE * idx )
-          #endif
+        #if defined( PRINT_MM_VIRT )
+          DEBUG_OUTPUT(
+            "TEMPORARY_SPACE_START = %#x, current_table * PAGE_SIZE * 512 = %#"PRIx32", ( PAGE_SIZE * idx ) = %#"PRIx32"\r\n",
+            TEMPORARY_SPACE_START, current_table * PAGE_SIZE * 512, PAGE_SIZE * idx )
+        #endif
         start_address = TEMPORARY_SPACE_START + (
             current_table * PAGE_SIZE * 512
           ) + ( PAGE_SIZE * idx );
-          #if defined( PRINT_MM_VIRT )
-            DEBUG_OUTPUT( "start_address = %#x\r\n", start_address )
-          #endif
+        #if defined( PRINT_MM_VIRT )
+          DEBUG_OUTPUT( "start_address = %#x\r\n", start_address )
+        #endif
       }
 
       // increase found amount
@@ -706,10 +706,10 @@ uint64_t v7_long_create_table(
  */
 bool v7_long_map(
   virt_context_t* ctx,
-  uintptr_t vaddr,
-  uint64_t paddr,
-  virt_memory_type_t memory,
-  uint32_t page
+  const uintptr_t vaddr,
+  const uint64_t paddr,
+  const virt_memory_type_t memory,
+  const uint32_t page
 ) {
   // debug output
   #if defined( PRINT_MM_VIRT )
@@ -724,8 +724,7 @@ bool v7_long_map(
   }
 
   // map temporary
-  ld_page_table_t* table = ( ld_page_table_t* )map_temporary(
-    table_phys, PAGE_SIZE );
+  auto table = ( ld_page_table_t* )map_temporary( table_phys, PAGE_SIZE );
   // check mapping
   if ( ! table ) {
     return false;
@@ -809,10 +808,10 @@ bool v7_long_map(
   // unmap temporary
   unmap_temporary( ( uintptr_t )table, PAGE_SIZE );
 
-  uintptr_t min = virt_get_context_min_address( ctx );
-  uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
-  uint32_t index = PAGE_INDEX( frame );
-  uint32_t offset = PAGE_OFFSET( frame );
+  const uintptr_t min = virt_get_context_min_address( ctx );
+  const uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
+  const uint32_t index = PAGE_INDEX( frame );
+  const uint32_t offset = PAGE_OFFSET( frame );
   ctx->bitmap[ index ] |= ( 1U << offset );
 
   // return success
@@ -831,12 +830,12 @@ bool v7_long_map(
  */
 bool v7_long_map_random(
   virt_context_t* ctx,
-  uintptr_t vaddr,
-  virt_memory_type_t memory,
-  uint32_t page
+  const uintptr_t vaddr,
+  const virt_memory_type_t memory,
+  const uint32_t page
 ) {
   // get physical address
-  uint64_t phys = phys_find_free_page( PAGE_SIZE, PHYS_MEMORY_TYPE_NORMAL );
+  const uint64_t phys = phys_find_free_page( PAGE_SIZE, PHYS_MEMORY_TYPE_NORMAL );
   // handle error
   if ( INVALID_ADDRESS == phys ) {
     return false;
@@ -853,7 +852,7 @@ bool v7_long_map_random(
  * @param size size to map
  * @return
  */
-uintptr_t v7_long_map_temporary( uint64_t paddr, size_t size ) {
+uintptr_t v7_long_map_temporary( const uint64_t paddr, const size_t size ) {
   return map_temporary( paddr, size );
 }
 
@@ -866,18 +865,17 @@ uintptr_t v7_long_map_temporary( uint64_t paddr, size_t size ) {
  * @param free_phys flag to free also physical memory
  * @return
  */
-bool v7_long_unmap( virt_context_t* ctx, uintptr_t vaddr, bool free_phys ) {
+bool v7_long_unmap( virt_context_t* ctx, uintptr_t vaddr, const bool free_phys ) {
   // get page index
-  uint32_t page_idx = LD_VIRTUAL_PAGE_INDEX( vaddr );
+  const uint32_t page_idx = LD_VIRTUAL_PAGE_INDEX( vaddr );
   // get physical table
-  uint64_t table_phys = v7_long_create_table( ctx, vaddr, 0 );
+  const uint64_t table_phys = v7_long_create_table( ctx, vaddr, 0 );
   if ( 0 == table_phys ) {
     return false;
   }
 
   // map table for unmapping temporary
-  ld_page_table_t* table = ( ld_page_table_t* )map_temporary(
-    table_phys, PAGE_SIZE );
+  auto const table = ( ld_page_table_t* )map_temporary( table_phys, PAGE_SIZE );
   // check table
   if ( ! table ) {
     return false;
@@ -910,10 +908,10 @@ bool v7_long_unmap( virt_context_t* ctx, uintptr_t vaddr, bool free_phys ) {
   // flush context if running
   virt_flush_address( ctx, vaddr );
 
-  uintptr_t min = virt_get_context_min_address( ctx );
-  uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
-  uint32_t index = PAGE_INDEX( frame );
-  uint32_t offset = PAGE_OFFSET( frame );
+  const uintptr_t min = virt_get_context_min_address( ctx );
+  const uintptr_t frame = ( vaddr - min ) / PAGE_SIZE;
+  const uint32_t index = PAGE_INDEX( frame );
+  const uint32_t offset = PAGE_OFFSET( frame );
   ctx->bitmap[ index ] &= ~( 1U << offset );
 
   return true;
@@ -926,7 +924,7 @@ bool v7_long_unmap( virt_context_t* ctx, uintptr_t vaddr, bool free_phys ) {
  * @param addr virtual temporary address
  * @param size size to unmap
  */
-void v7_long_unmap_temporary( uintptr_t addr, size_t size ) {
+void v7_long_unmap_temporary( const uintptr_t addr, const size_t size ) {
   unmap_temporary( addr, size );
 }
 

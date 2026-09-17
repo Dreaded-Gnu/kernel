@@ -136,7 +136,7 @@ task_thread_t* task_thread_create(
     )
     DUMP_REGISTER(current_context);
   #endif
-  current_context->reg.sp = stack_virtual + STACK_SIZE - alignof( max_align_t );
+  current_context->reg.sp = stack_virtual - alignof( max_align_t );
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "%d\r\n", alignof( max_align_t ) )
     DUMP_REGISTER(current_context);
@@ -181,20 +181,22 @@ task_thread_t* task_thread_create(
     free( thread );
     return nullptr;
   }
+  uintptr_t virtual = stack_virtual - PAGE_SIZE;
+  uint64_t physical = stack_physical + STACK_SIZE - PAGE_SIZE;
   for(
     uintptr_t stack_current = 0;
     stack_current < STACK_SIZE;
-    stack_current += PAGE_SIZE
+    stack_current += PAGE_SIZE, virtual -= PAGE_SIZE, physical -= PAGE_SIZE
   ) {
     #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "stack_virtual + stack_current = %#"PRIxPTR"\r\n", stack_virtual + stack_current )
-      DEBUG_OUTPUT( "stack_physical + stack_current = %#"PRIx64"\r\n", stack_physical + stack_current )
+      DEBUG_OUTPUT( "virtual = %#"PRIxPTR"\r\n", virtual )
+      DEBUG_OUTPUT( "physical = %#"PRIx64"\r\n", physical )
     #endif
     // map stack
     if ( ! virt_map_address(
       process->virtual_context,
-      stack_virtual + stack_current,
-      stack_physical + stack_current,
+      virtual,
+      physical,
       VIRT_MEMORY_TYPE_NORMAL,
       VIRT_PAGE_TYPE_READ | VIRT_PAGE_TYPE_WRITE
     ) ) {
@@ -431,9 +433,12 @@ bool task_thread_push_arguments(
     free( argv_ptr );
     return false;
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "stack_tmp = %#"PRIxPTR", thread->stack_virtual = %#"PRIxPTR"\r\n", stack_tmp, thread->stack_virtual )
+  #endif
   // get top stack of temporary and user
   uintptr_t rsp = stack_tmp + STACK_SIZE - alignof( max_align_t );
-  uintptr_t user_rsp = thread->stack_virtual  + STACK_SIZE - alignof( max_align_t );
+  uintptr_t user_rsp = thread->stack_virtual - alignof( max_align_t );
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "rsp = %#"PRIxPTR", user_rsp = %#"PRIxPTR"\r\n", rsp, user_rsp )
   #endif
@@ -505,6 +510,9 @@ bool task_thread_push_arguments(
   for ( int i = env_count - 1; i >= 0; i-- ) {
     STACK_PUSH( rsp, user_rsp, uintptr_t, env_ptr[ i ] );
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "rsp = %#"PRIxPTR", user_rsp = %#"PRIxPTR"\r\n", rsp, user_rsp )
+  #endif
   // cache env start
   const uintptr_t env_start = user_rsp;
   // push argv to stack
@@ -512,8 +520,14 @@ bool task_thread_push_arguments(
   for ( int i = argv_count - 1; i >= 0; i-- ) {
     STACK_PUSH( rsp, user_rsp, uintptr_t, argv_ptr[ i ] );
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "rsp = %#"PRIxPTR", user_rsp = %#"PRIxPTR"\r\n", rsp, user_rsp )
+  #endif
   // push argv start
   const uintptr_t argv_start = user_rsp;
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "env_start = %#"PRIxPTR", argv_start = %#"PRIxPTR"\r\n", env_start, argv_start )
+  #endif
   // populate r0 - r2 ( argv, argc and env )
   auto const cpu = ( cpu_register_context_t* )thread->current_context;
   cpu->reg.r0 = ( uint32_t )argv_count;

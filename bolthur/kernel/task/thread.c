@@ -296,7 +296,7 @@ task_thread_t* task_thread_next( void ) {
     }
 
     // get queue
-    task_priority_queue_t* current = TASK_QUEUE_GET_PRIORITY( current_node );
+    auto const current = TASK_QUEUE_GET_PRIORITY( current_node );
     // check for no items left or empty list
     if (
       list_empty( current->thread_list )
@@ -344,7 +344,7 @@ task_thread_t* task_thread_next( void ) {
     // get next ready task
     while ( item ) {
       // get task object
-      task_thread_t* task = ( task_thread_t* )item->data;
+      auto const task = ( task_thread_t* )item->data;
       // debug output
       #if defined( PRINT_PROCESS )
         DEBUG_OUTPUT( "task %d with state %d\r\n", task->id, task->state )

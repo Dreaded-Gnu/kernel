@@ -101,12 +101,12 @@ void rpc_interrupt_handle(
   [[maybe_unused]] size_t data_info,
   [[maybe_unused]] size_t response_info
 ) {
-  uint32_t frame_num_entry = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Interrupt handler called\r\n" )
+    uint32_t frame_num_entry = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
   #endif
   // read interrupt register
-  uint32_t interrupt = mmio_read( PERIPHERAL_DWHCI_CORE_INT_STAT );
+  const uint32_t interrupt = mmio_read( PERIPHERAL_DWHCI_CORE_INT_STAT );
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "interrupt = %#"PRIx32"\r\n", interrupt )
   #endif
@@ -313,18 +313,20 @@ void rpc_interrupt_handle(
         // transfer complete flag
         const bool transfer_complete = cipt & HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE;
         const bool channel_halted = cipt & HCD_CHANNEL_INTERRUPT_HALT;
+        const bool channel_nack = cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT;
+        const bool channel_not_yet = cipt & HCD_CHANNEL_INTERRUPT_NOT_YET;
 
         // handle nack without channel halted => immediate retry
         if (
           // treat nack as retry
           (
             ! channel_halted
-            && cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
+            && channel_nack
             && DWHCI_QUEUE_POLL_STATUS_DATA != entry->status
           // treat not yet with no split as retry
           ) || (
             channel_halted
-            && cipt & HCD_CHANNEL_INTERRUPT_NOT_YET
+            && channel_not_yet
             && DWHCI_QUEUE_POLL_STATUS_DATA != entry->status
           )
         ) {
@@ -368,8 +370,10 @@ void rpc_interrupt_handle(
           && DWHCI_QUEUE_POLL_STATUS_DATA == entry->status
           && ! split_complete
           && ! transfer_complete
-          && ! ( cipt & HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT )
+          && ! channel_nack
         ) {
+          // reset error
+          entry->error = 0;
           // read out split ctrl, set complete split and write it back
           uint32_t split_control = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ) );
           split_control |= HCD_DWHCI_CHAN_SPLIT_CONTROL_COMPLETE_SPLIT( 1 );
@@ -397,7 +401,6 @@ void rpc_interrupt_handle(
             | HCD_CHANNEL_INTERRUPT_NEGATIVE_ACKNOWLEDGEMENT
             | HCD_CHANNEL_INTERRUPT_NOT_YET
           );
-
           // handle possible wait for next microframe
           entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
           const uint32_t ssplit_frame = ( entry->poll_ssplit_frame_num >> 3 ) & 0x7FF;
@@ -407,7 +410,6 @@ void rpc_interrupt_handle(
           if ( ssplit_frame == csplit_frame && ssplit_uframe == csplit_uframe ) {
             wait_for_next_microframe();
           }
-
           // calculate target frame
           const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
           const uint32_t current_frame = ( frame_number >> 3 ) & 0x7FF;
@@ -424,30 +426,32 @@ void rpc_interrupt_handle(
           entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
           // write back character
           mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
-
-          EARLY_STARTUP_PRINT(
-            "SSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
-            entry->poll_ssplit_frame_num,
-            (entry->poll_ssplit_frame_num >> 3) & 0x7FF,
-            entry->poll_ssplit_frame_num & 0x7
-          )
-          EARLY_STARTUP_PRINT(
-            "RPC ENTRY: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
-            frame_num_entry,
-            (frame_num_entry >> 3) & 0x7FF,
-            frame_num_entry & 0x7
-          )
-          EARLY_STARTUP_PRINT(
-            "CSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
-            entry->poll_csplit_frame_num,
-            (entry->poll_csplit_frame_num >> 3) & 0x7FF,
-            entry->poll_csplit_frame_num & 0x7
-          )
-          // print interrupt
-          EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
-          EARLY_STARTUP_PRINT( "split_control = %#"PRIx32"\r\n", split_control )
-          EARLY_STARTUP_PRINT( "transfer_data = %#"PRIx32"\r\n", transfer_data )
-          EARLY_STARTUP_PRINT( "characteristic = %#"PRIx32"\r\n", characteristic )
+          // debug output
+          #if defined( DWHCI_ENABLE_DEBUG )
+            EARLY_STARTUP_PRINT(
+              "SSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+              entry->poll_ssplit_frame_num,
+              (entry->poll_ssplit_frame_num >> 3) & 0x7FF,
+              entry->poll_ssplit_frame_num & 0x7
+            )
+            EARLY_STARTUP_PRINT(
+              "RPC ENTRY: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+              frame_num_entry,
+              (frame_num_entry >> 3) & 0x7FF,
+              frame_num_entry & 0x7
+            )
+            EARLY_STARTUP_PRINT(
+              "CSPLIT: HFNUM = %#"PRIx32" frame=%"PRIu32" uframe=%"PRIu32"\r\n",
+              entry->poll_csplit_frame_num,
+              (entry->poll_csplit_frame_num >> 3) & 0x7FF,
+              entry->poll_csplit_frame_num & 0x7
+            )
+            // print interrupt
+            EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+            EARLY_STARTUP_PRINT( "split_control = %#"PRIx32"\r\n", split_control )
+            EARLY_STARTUP_PRINT( "transfer_data = %#"PRIx32"\r\n", transfer_data )
+            EARLY_STARTUP_PRINT( "characteristic = %#"PRIx32"\r\n", characteristic )
+          #endif
           // assign channel
           channel_mask <<= 1;
           // skip rest

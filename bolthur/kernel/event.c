@@ -293,7 +293,7 @@ void event_handle( void* data ) {
     avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
     if ( ! node ) {
       // mask bit
-      bitmap &= ( type - 1 );
+      bitmap &= ( bitmap - 1 );
       event->queue_bitmap = bitmap;
       // skip rest
       continue;
@@ -319,14 +319,14 @@ void event_handle( void* data ) {
       current = current->next;
     }
     // mask bit
-    bitmap &= ( type - 1 );
+    bitmap &= ( bitmap - 1 );
     event->queue_bitmap = bitmap;
   }
   // execute post events
   while ( post_bitmap ) {
     auto const type = ( event_type_t )__builtin_ctz( post_bitmap );
     // mask bit
-    post_bitmap &= ( type - 1 );
+    post_bitmap &= ( post_bitmap - 1 );
     // get type node
     avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
     if ( ! node ) {
