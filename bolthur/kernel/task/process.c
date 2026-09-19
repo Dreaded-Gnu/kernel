@@ -786,10 +786,11 @@ static int map_replace_random( const size_t size ) {
 }
 
 /**
- * @fn int task_process_replace(task_process_t*, uintptr_t, const char**, const char**)
+ * @fn int task_process_replace(task_process_t*, uint32_t, uintptr_t, const char**, const char**)
  * @brief Replace current process with elf image
  *
  * @param proc
+ * @param nice_level
  * @param elf
  * @param argv
  * @param env
@@ -797,6 +798,7 @@ static int map_replace_random( const size_t size ) {
  */
 int task_process_replace(
   task_process_t* proc,
+  const uint32_t nice_level,
   const uintptr_t elf,
   const char** argv,
   const char** env
@@ -936,8 +938,7 @@ int task_process_replace(
   }
 
   // add thread
-  /// FIXME: COPY NICE LEVEL FROM PREVIOUS THREAD
-  task_thread_t* new_current = task_thread_create( init_entry, proc, 0 );
+  task_thread_t* new_current = task_thread_create( init_entry, proc, nice_level );
   if ( ! new_current ) {
     free( tmp_argv );
     free( tmp_env );

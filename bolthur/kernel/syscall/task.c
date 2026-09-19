@@ -232,7 +232,8 @@ void syscall_process_replace( void* context ) {
     return;
   }
   // replace process
-  int result = task_process_replace( task_thread_current_thread->process, addr, argv, env );
+  int result = task_process_replace( task_thread_current_thread->process,
+    task_thread_current_thread->nice_level, addr, argv, env );
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT( "process replace result = %d\r\n", result )
   #endif

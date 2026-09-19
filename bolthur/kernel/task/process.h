@@ -87,7 +87,7 @@ bool task_process_prepare_init( task_process_t* );
 uintptr_t task_process_prepare_init_arch( const task_process_t* );
 task_process_t* task_process_get_by_id( pid_t );
 void task_process_prepare_kill( task_process_t* );
-int task_process_replace( task_process_t*, uintptr_t, const char**, const char** );
+int task_process_replace( task_process_t*, uint32_t, uintptr_t, const char**, const char** );
 void task_unblock_threads( const task_process_t*, task_thread_state_t, task_state_data_t );
 
 #endif
