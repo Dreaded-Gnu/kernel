@@ -177,10 +177,11 @@ bool rpc_generic_restore( task_thread_t* thread ) {
 }
 
 /**
- * @fn bool rpc_generic_prepare_invoke(rpc_backup_t*)
+ * @fn bool rpc_generic_prepare_invoke(rpc_backup_t*, bool)
  * @brief Prepare rpc invoke with backup data
  *
  * @param backup
+ * @param measure
  * @return
  */
 bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
@@ -347,11 +348,23 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
 
   const uint64_t t_after_active_push_back = timer_get_current_tick_value();
   // handle timer
-  /// FIXME: THREAD STATE MIGHT BE WRONG IF SQUEEZED IN
   const uint64_t t_before_sleep_timer = timer_get_current_tick_value();
   if ( backup->thread->interruptable_sleep_timer ) {
     // mark as handled to prevent raise of rpc
     backup->thread->interruptable_sleep_timer->handled = true;
+    // iterate through rpc queue
+    auto item = backup->thread->process->rpc_queue->first;
+    while ( item ) {
+      // get backup
+      auto const tmp = ( rpc_backup_t* )item->data;
+      // handle not squeezed in
+      if ( ! tmp->squeezed_in ) {
+        tmp->thread_state = TASK_THREAD_STATE_ACTIVE;
+        break;
+      }
+      // go to next
+      item = item->next;
+    }
     // adjust previous state
     backup->thread_state = TASK_THREAD_STATE_ACTIVE;
   }

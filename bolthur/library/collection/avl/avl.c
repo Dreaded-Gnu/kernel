@@ -41,7 +41,7 @@ static int32_t level_index;
  * @param node
  * @return int32_t
  */
-static int32_t height_get( const avl_node_t* node ) {
+__attribute__((always_inline)) static inline int32_t height_get( const avl_node_t* node ) {
   return node ? node->height : 0;
 }
 
@@ -52,7 +52,7 @@ static int32_t height_get( const avl_node_t* node ) {
  * @param right
  * @return
  */
-static int32_t max( const int32_t left, const int32_t right ) {
+__attribute__((always_inline)) static inline int32_t max( const int32_t left, const int32_t right ) {
   return left > right ? left : right;
 }
 
@@ -61,7 +61,7 @@ static int32_t max( const int32_t left, const int32_t right ) {
  * @brief Helper to update height
  * @param node
  */
-static void height_update( avl_node_t* node ) {
+__attribute__((always_inline)) static inline void height_update( avl_node_t* node ) {
   if ( node ) {
     node->height = 1 + max( height_get( node->left ), height_get( node->right ) );
   }
@@ -148,7 +148,7 @@ static avl_node_t* insert( const avl_tree_t* tree, avl_node_t* node, avl_node_t*
  * @param node
  * @return int32_t
  */
-static int32_t balance_factor( avl_node_t* node ) {
+__attribute__((always_inline)) static inline int32_t balance_factor( avl_node_t* node ) {
   return ! node ? 0 : height_get( node->right ) - height_get( node->left );
 }
 
