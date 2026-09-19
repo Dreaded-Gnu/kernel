@@ -42,9 +42,8 @@ void task_process_start( void ) {
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Entered task_process_start()\r\n" )
   #endif
-
   // get first thread to execute
-  task_thread_t* next_thread = task_thread_next();
+  task_thread_t* next_thread = task_queue_peek();
   // handle no thread
   if ( ! next_thread ) {
     // debug output
@@ -53,28 +52,14 @@ void task_process_start( void ) {
     #endif
     return;
   }
-
-  // variable for next thread queue
-  task_priority_queue_t* next_queue = task_queue_get_queue(
-    process_manager, next_thread->priority );
-  // check queue
-  if ( ! next_queue ) {
-    // debug output
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "No next queue found!\r\n" )
-    #endif
-    return;
-  }
-
   // set current running thread
-  if ( ! task_thread_set_current( next_thread, next_queue ) ) {
+  if ( ! task_thread_set_current( next_thread ) ) {
     // debug output
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "Set current failed!\r\n" )
     #endif
     return;
   }
-
   // debug output
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT(
@@ -83,7 +68,6 @@ void task_process_start( void ) {
       next_queue
     )
   #endif
-
   // set context and flush
   if ( ! virt_set_context( next_thread->process->virtual_context ) ) {
     // debug output
@@ -98,11 +82,12 @@ void task_process_start( void ) {
     DEBUG_OUTPUT( "Flushing virtual adresses!\r\n" )
   #endif
   virt_flush_complete();
-
   // debug output
   #if defined( PRINT_PROCESS )
     DUMP_REGISTER( next_thread->current_context )
   #endif
+  // remove from tree
+  task_queue_dequeue_specific( next_thread );
   // jump to thread
   task_thread_switch_to( ( uintptr_t )next_thread->current_context );
 }
@@ -151,16 +136,7 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
 
   // set running thread
   task_thread_t* running_thread = task_thread_current_thread;
-  // get running queue if set
-  task_priority_queue_t* running_queue = nullptr;
   if ( running_thread ) {
-    // load queue until success has been returned
-    while ( ! running_queue ) {
-      running_queue = task_queue_get_queue(
-        process_manager, running_thread->priority );
-    }
-    // set last handled within running queue
-    running_queue->last_handled = running_thread;
     // update running task to halt due to switch
     if ( TASK_THREAD_STATE_ACTIVE == running_thread->state ) {
       task_thread_set_state( running_thread, TASK_THREAD_STATE_HALT_SWITCH );
@@ -185,7 +161,7 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
   // loop while next thread is not set, or it's not ready
   while ( ! next_thread ) {
     // get next thread
-    next_thread = task_thread_next();
+    next_thread = task_queue_peek();
     // debug output
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "current_thread = %p\r\n", running_thread )
@@ -194,10 +170,9 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     // reset queue if nothing found
     if ( ! next_thread ) {
       // reset
-      task_process_queue_reset();
       task_thread_reset_current();
       // get next thread after reset
-      next_thread = task_thread_next();
+      next_thread = task_queue_peek();
       // debug output
       #if defined( PRINT_PROCESS )
         DEBUG_OUTPUT( "next_thread = %p\r\n", next_thread )
@@ -233,20 +208,7 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
       )
     }
   #endif
-
-  // variable for next queue
-  task_priority_queue_t* next_queue = nullptr;
-  // get queue of next thread
-  while ( ! next_queue ) {
-    next_queue = task_queue_get_queue( process_manager, next_thread->priority );
-  }
-
-  // reset current if queue changed
-  if ( running_queue && running_queue != next_queue ) {
-    running_queue->current = nullptr;
-  }
-
-  // save context of current thread
+  // save state of current thread
   if ( running_thread ) {
     // reset state to ready
     if ( TASK_THREAD_STATE_HALT_SWITCH == running_thread->state ) {
@@ -255,8 +217,27 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
       task_thread_set_state( running_thread, TASK_THREAD_STATE_RPC_QUEUED );
     }
   }
+  // update min vruntime by using running thread
+  task_queue_update_min_vruntime( running_thread );
+  // handle running thread not next thread
+  if ( running_thread != next_thread ) {
+    // remove next thread
+    task_queue_dequeue_specific( next_thread );
+    // enqueue thread again if ready
+    if (
+      TASK_THREAD_STATE_READY == running_thread->state
+      || TASK_THREAD_STATE_RPC_QUEUED == running_thread->state
+    ) {
+      task_queue_enqueue( running_thread );
+    }
+  }
+  // debug output
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "running_thread = %d / %d, next_thread = %d / %d\r\n",
+      running_thread->process->id, running_thread->state, next_thread->process->id, next_thread->state )
+  #endif
   // overwrite current running thread
-  while( ! task_thread_set_current( next_thread, next_queue ) ) {
+  while( ! task_thread_set_current( next_thread ) ) {
     __asm__ __volatile__ ( "nop" ::: "cc" );
   }
 
@@ -280,23 +261,22 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
 }
 
 /**
- * @fn uintptr_t task_process_prepare_init_arch(task_process_t*)
+ * @fn uintptr_t task_process_prepare_init_arch(const task_process_t*)
  * @brief prepare init process by mapping device tree
  *
  * @param proc pointer to init process structure
  * @return
  */
-uintptr_t task_process_prepare_init_arch( task_process_t* proc ) {
+uintptr_t task_process_prepare_init_arch( const task_process_t* proc ) {
   // get possible device tree
   const uintptr_t device_tree = firmware_info.atag_fdt;
   // return error if device tree is missing
   if ( 0 != fdt_check_header( ( void* )device_tree ) ) {
     return 0;
   }
-
   // get start and end of tree
-  uintptr_t fdt_start = device_tree;
-  size_t fdt_size = fdt32_to_cpu(
+  const uintptr_t fdt_start = device_tree;
+  const size_t fdt_size = fdt32_to_cpu(
     ( ( struct fdt_header* )device_tree )->totalsize
   );
   // debug output
@@ -306,9 +286,9 @@ uintptr_t task_process_prepare_init_arch( task_process_t* proc ) {
       fdt_start, fdt_end )
   #endif
   // round up size
-  size_t rounded_fdt_size = ROUND_UP_TO_FULL_PAGE( fdt_size );
+  const size_t rounded_fdt_size = ROUND_UP_TO_FULL_PAGE( fdt_size );
   // get physical area
-  uint64_t phys_address_fdt = phys_find_free_page_range(
+  const uint64_t phys_address_fdt = phys_find_free_page_range(
     PAGE_SIZE,
     rounded_fdt_size,
     PHYS_MEMORY_TYPE_NORMAL
@@ -357,7 +337,6 @@ uintptr_t task_process_prepare_init_arch( task_process_t* proc ) {
     phys_free_page_range( phys_address_fdt, rounded_fdt_size );
     return 0;
   }
-
   // return proc
   return proc_fdt_start;
 }

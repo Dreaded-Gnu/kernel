@@ -110,7 +110,7 @@ void syscall_process_exist( void* context ) {
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT( "syscall_process_parent_id(%d)\r\n", process )
   #endif
-  task_process_t* target = task_process_get_by_id( process );
+  const task_process_t* target = task_process_get_by_id( process );
   // populate return
   syscall_populate_success(
     context,
@@ -280,7 +280,7 @@ void syscall_thread_id( void* context ) {
  */
 void syscall_thread_create( void* context ) {
   uintptr_t entry = ( uintptr_t )syscall_get_parameter( context, 0 );
-  void* argument = ( void* )syscall_get_parameter( context, 1 );
+  auto argument = ( void* )syscall_get_parameter( context, 1 );
   // debug output
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
@@ -293,7 +293,7 @@ void syscall_thread_create( void* context ) {
   task_thread_t* new_thread = task_thread_create(
     entry,
     task_thread_current_thread->process,
-    task_thread_current_thread->priority
+    task_thread_current_thread->nice_level
   );
   // handle error
   if ( ! new_thread ) {

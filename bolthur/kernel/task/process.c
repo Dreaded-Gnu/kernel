@@ -93,7 +93,7 @@ static int32_t process_compare_id(
  */
 static int32_t process_lookup_id(
   const avl_node_t* a,
-  const void* b
+  const uint64_t b
 ) {
   // debug output
   #if defined( PRINT_PROCESS )
@@ -107,8 +107,9 @@ static int32_t process_lookup_id(
   // -1 if address of a->data is greater than address of b->data
   if ( ( pid_t )a->data > ( pid_t )b) {
     return -1;
+  }
   // 1 if address of b->data is greater than address of a->data
-  } else if ( ( pid_t )b > ( pid_t )a->data ) {
+  if ( ( pid_t )b > ( pid_t )a->data ) {
     return 1;
   }
   // equal => return 0
@@ -210,11 +211,10 @@ bool task_process_init( void ) {
     return false;
   }
   // prepare structure
-  memset( ( void* )process_manager, 0, sizeof( *process_manager ) );
+  memset( process_manager, 0, sizeof( *process_manager ) );
 
   // create tree for managing processes by id
-  process_manager->process_id = avl_create_tree(
-    process_compare_id, process_lookup_id, nullptr );
+  process_manager->process_id = avl_create_tree( process_compare_id, process_lookup_id, nullptr );
   // handle error
   if ( ! process_manager->process_id ) {
     // debug output
@@ -224,18 +224,16 @@ bool task_process_init( void ) {
     free( process_manager );
     return false;
   }
-  // create thread queue tree
-  process_manager->thread_priority = task_queue_init();
-  // handle error
-  if ( ! process_manager->thread_priority ) {
+  if ( ! task_queue_init() ) {
     // debug output
     #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "thread_priority failed\r\n" )
+      DEBUG_OUTPUT( "task queue init failed\r\n" )
     #endif
     avl_destroy_tree( process_manager->process_id );
     free( process_manager );
     return false;
   }
+
   // create cleanup list
   process_manager->process_to_cleanup = list_construct(
     cleanup_process_lookup_id,
@@ -248,7 +246,7 @@ bool task_process_init( void ) {
       DEBUG_OUTPUT( "process_to_cleanup failed\r\n" )
     #endif
     avl_destroy_tree( process_manager->process_id );
-    avl_destroy_tree( process_manager->thread_priority );
+    task_queue_destroy();
     free( process_manager );
     return false;
   }
@@ -260,7 +258,7 @@ bool task_process_init( void ) {
     #endif
     list_destruct( process_manager->process_to_cleanup );
     avl_destroy_tree( process_manager->process_id );
-    avl_destroy_tree( process_manager->thread_priority );
+    task_queue_destroy();
     free( process_manager );
     return false;
   }
@@ -272,7 +270,7 @@ bool task_process_init( void ) {
     #endif
     list_destruct( process_manager->thread_to_cleanup );
     list_destruct( process_manager->process_to_cleanup );
-    avl_destroy_tree( process_manager->thread_priority );
+    task_queue_destroy();
     avl_destroy_tree( process_manager->process_id );
     free( process_manager );
     return false;
@@ -286,7 +284,7 @@ bool task_process_init( void ) {
     event_unbind( EVENT_PROCESS, task_process_schedule, true );
     list_destruct( process_manager->thread_to_cleanup );
     list_destruct( process_manager->process_to_cleanup );
-    avl_destroy_tree( process_manager->thread_priority );
+    task_queue_destroy();
     avl_destroy_tree( process_manager->process_id );
     free( process_manager );
     return false;
@@ -300,7 +298,7 @@ bool task_process_init( void ) {
     event_unbind( EVENT_PROCESS, task_process_schedule, true );
     list_destruct( process_manager->thread_to_cleanup );
     list_destruct( process_manager->process_to_cleanup );
-    avl_destroy_tree( process_manager->thread_priority );
+    task_queue_destroy();
     avl_destroy_tree( process_manager->process_id );
     free( process_manager );
     return false;
@@ -390,7 +388,7 @@ task_process_t* task_process_create( const size_t priority, const pid_t parent )
   }
 
   // prepare node
-  avl_prepare_node( &process->node_id, ( void* )process->id );
+  avl_prepare_node( &process->node_id, ( uint64_t )process->id );
   // add process to tree
   if ( ! avl_insert_by_node( process_manager->process_id, &process->node_id ) ) {
     task_process_free( process );
@@ -484,10 +482,9 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   forked->id = task_process_generate_id();
   forked->parent = proc->id;
   forked->priority = proc->priority;
-  forked->current_thread_id = 0;
 
   // prepare node
-  avl_prepare_node( &forked->node_id, ( void* )forked->id );
+  avl_prepare_node( &forked->node_id, ( uint64_t )forked->id );
   // add process to tree
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Insert node into process tree\r\n" )
@@ -520,83 +517,6 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   }
 
   return forked;
-}
-
-/**
- * @fn void task_process_queue_reset(void)
- * @brief Resets process priority queues
- */
-void task_process_queue_reset( void ) {
-  // min / max queue
-  task_priority_queue_t* min_queue = nullptr;
-  task_priority_queue_t* max_queue = nullptr;
-  avl_node_t* min = nullptr;
-  avl_node_t* max = nullptr;
-
-  // debug output
-  #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "task_process_queue_reset()\r\n" )
-  #endif
-
-  // get min and max priority queue
-  min = avl_get_min( process_manager->thread_priority->root );
-  max = avl_get_max( process_manager->thread_priority->root );
-  // debug output
-  #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "min: %p, max: %p\r\n", min, max )
-  #endif
-
-  // get nodes from min/max
-  if ( min ) {
-    min_queue = TASK_QUEUE_GET_PRIORITY( min );
-  }
-  if ( max ) {
-    max_queue = TASK_QUEUE_GET_PRIORITY( max );
-  }
-  // handle no min or no max queue
-  if ( ! min_queue || ! max_queue ) {
-    return;
-  }
-
-  // loop through priorities and try to get next task
-  for (
-    size_t priority = max_queue->priority;
-    priority >= min_queue->priority;
-    priority--
-  ) {
-    // try to find queue for priority
-    avl_node_t* current_node = avl_find_by_data(
-      process_manager->thread_priority,
-      ( void* )priority );
-    // skip if not existing
-    if ( ! current_node ) {
-      // prevent endless loop by checking against 0
-      if ( 0 == priority ) {
-        break;
-      }
-      // skip if no such queue exists
-      continue;
-    }
-
-    // get queue
-    task_priority_queue_t* current = TASK_QUEUE_GET_PRIORITY( current_node );
-    // check for empty
-    if ( list_empty( current->thread_list ) ) {
-      // prevent endless loop by checking against 0
-      if ( 0 == priority ) {
-        break;
-      }
-      // skip if queue is handled
-      continue;
-    }
-
-    // reset last handled
-    current->last_handled = nullptr;
-    // prevent endless loop by checking against 0
-    if ( 0 == priority ) {
-      break;
-    }
-  }
 }
 
 /**
@@ -775,12 +695,9 @@ bool task_process_prepare_init( task_process_t* proc ) {
  * @param pid
  * @return
  */
-task_process_t* task_process_get_by_id( pid_t pid ) {
+task_process_t* task_process_get_by_id( const pid_t pid ) {
   // lookup process id tree
-  avl_node_t* found = avl_find_by_data(
-    process_manager->process_id,
-    ( void* )pid
-  );
+  avl_node_t* found = avl_find_by_data( process_manager->process_id, ( uint64_t )pid );
   // handle not existing
   if ( ! found ) {
     return nullptr;
@@ -1007,8 +924,6 @@ int task_process_replace(
     task_process_prepare_kill( proc );
     return -ENOMEM;
   }
-  // reset thread id counter
-  proc->current_thread_id = 0;
 
   // load elf image
   const uintptr_t init_entry = elf_load( ( uintptr_t )image, proc );
@@ -1021,6 +936,7 @@ int task_process_replace(
   }
 
   // add thread
+  /// FIXME: COPY NICE LEVEL FROM PREVIOUS THREAD
   task_thread_t* new_current = task_thread_create( init_entry, proc, 0 );
   if ( ! new_current ) {
     free( tmp_argv );
@@ -1064,6 +980,8 @@ int task_process_replace(
     virt_set_context( task_thread_current_thread->process->virtual_context );
     // flush everything
     virt_flush_complete();
+    // remove from scheduling tree
+    task_queue_dequeue_specific( new_current );
   }
   return 0;
 }
@@ -1081,22 +999,17 @@ void task_unblock_threads(
   const task_thread_state_t necessary_thread_state,
   const task_state_data_t necessary_thread_data
 ) {
-  // get first thread
-  avl_node_t* current_thread_node = avl_iterate_first( proc->thread_manager );
-  // loop until there is no more thread
-  while ( current_thread_node ) {
-    // get thread
-    auto const possible_thread_to_unblock = TASK_THREAD_GET_BLOCK(
-      current_thread_node );
-    // try to unblock if blocked
-    task_thread_unblock(
-      possible_thread_to_unblock,
-      necessary_thread_state,
-      necessary_thread_data
-    );
-    // get next thread
-    current_thread_node = avl_iterate_next(
-      proc->thread_manager,
-      current_thread_node );
+  auto current = task_queue_get_first_blocked();
+  while ( current ) {
+    // get possible to unblock
+    auto const to_unblock = ( task_thread_t* )current->data;
+    // go to next
+    current = current->next;
+    // handle different process => skip it
+    if ( to_unblock->process->id != proc->id ) {
+      continue;
+    }
+    // try to unblock
+    task_thread_unblock( to_unblock, necessary_thread_state, necessary_thread_data );
   }
 }

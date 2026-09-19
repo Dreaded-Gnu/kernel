@@ -51,7 +51,7 @@ static int32_t compare_container(
 }
 
 /**
- * @fn int32_t lookup_container(const avl_node_t*, const void*)
+ * @fn int32_t lookup_container(const avl_node_t*, uint64_t)
  * @brief Lookup handle callback necessary for avl tree search operations
  *
  * @param node
@@ -60,7 +60,7 @@ static int32_t compare_container(
  */
 static int32_t lookup_container(
   const avl_node_t* node,
-  const void* value
+  const uint64_t value
 ) {
   auto const type = ( libusb_hid_usage_page_desktop_t )value;
   auto const node_type = ( libusb_hid_usage_page_desktop_t )node->data;
@@ -117,7 +117,7 @@ int handler_register( const libusb_hid_usage_page_desktop_t type, const pid_t ha
     return EINVAL;
   }
   // try to find possible handler
-  const avl_node_t* found = avl_find_by_data( management_tree, ( void* )type );
+  const avl_node_t* found = avl_find_by_data( management_tree, type );
   // handle found
   if ( found ) {
     return EINVAL;
@@ -132,7 +132,7 @@ int handler_register( const libusb_hid_usage_page_desktop_t type, const pid_t ha
   // pure in data
   item->handler = handler;
   // prepare node
-  avl_prepare_node( &item->node, ( void* )type );
+  avl_prepare_node( &item->node, type );
   // insert into tree
   if ( ! avl_insert_by_node( management_tree, &item->node ) ) {
     free( item );
@@ -155,7 +155,7 @@ int handler_unregister( const libusb_hid_usage_page_desktop_t type, const pid_t 
     return EINVAL;
   }
   // try to find possible handler
-  avl_node_t* found = avl_find_by_data( management_tree, ( void* )type );
+  avl_node_t* found = avl_find_by_data( management_tree, type );
   // handle not found => return success
   if ( ! found ) {
     return 0;
@@ -187,7 +187,7 @@ int handler_get( const libusb_hid_usage_page_desktop_t type, pid_t* handler ) {
     return EINVAL;
   }
   // try to find possible handler
-  const avl_node_t* found = avl_find_by_data( management_tree, ( void* )type );
+  const avl_node_t* found = avl_find_by_data( management_tree, type );
   // handle not found
   if ( ! found ) {
     *handler = -1;

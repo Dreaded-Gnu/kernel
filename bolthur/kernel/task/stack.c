@@ -48,15 +48,14 @@ static int32_t task_stack_callback(
     DEBUG_OUTPUT( "a = %p, b = %p\r\n", a, b )
     DEBUG_OUTPUT( "a->data = %p, b->data = %p\r\n", a->data, b->data )
   #endif
-
   // -1 if address of a->data is greater than address of b->data
-  if ( ( uintptr_t )a->data > ( uintptr_t )b->data ) {
+  if ( a->data > b->data ) {
     return -1;
+  }
   // 1 if address of b->data is greater than address of a->data
-  } else if ( ( uintptr_t )b->data > ( uintptr_t )a->data ) {
+  if ( b->data > a->data ) {
     return 1;
   }
-
   // equal => return 0
   return 0;
 }
@@ -86,10 +85,8 @@ void task_stack_manager_destroy( task_stack_manager_t* manager ) {
   if ( ! manager ) {
     return;
   }
-
   // destroy tree
   avl_destroy_tree( manager->tree );
-
   // free up manager
   free( manager );
 }
@@ -141,7 +138,7 @@ bool task_stack_manager_add(
     return false;
   }
   // create node
-  avl_node_t* node = avl_create_node( ( void* )stack );
+  avl_node_t* node = avl_create_node( stack );
   // handle error
   if ( ! node ) {
     return false;
@@ -168,7 +165,7 @@ bool task_stack_manager_remove(
     return false;
   }
   // try to get node
-  avl_node_t* node = avl_find_by_data( manager->tree, ( void* )stack );
+  avl_node_t* node = avl_find_by_data( manager->tree, stack );
   // handle not found
   if ( ! node ) {
     return true;

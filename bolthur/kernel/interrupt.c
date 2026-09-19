@@ -149,7 +149,7 @@ bool interrupt_unregister_handler(
   #endif
 
   // try to find node
-  avl_node_t* node = avl_find_by_data( tree, ( void* )num );
+  avl_node_t* node = avl_find_by_data( tree, num );
   interrupt_block_t* block;
   // debug output
   #if defined( PRINT_INTERRUPT )
@@ -257,7 +257,7 @@ bool interrupt_register_handler(
   #endif
 
   // try to find node
-  avl_node_t* node = avl_find_by_data( tree, ( void* )num );
+  avl_node_t* node = avl_find_by_data( tree, num );
   interrupt_block_t* block;
   // debug output
   #if defined( PRINT_INTERRUPT )
@@ -280,7 +280,7 @@ bool interrupt_register_handler(
     // populate block
     block->interrupt = num;
     // prepare and insert node
-    avl_prepare_node( &block->node, ( void* )num );
+    avl_prepare_node( &block->node, num );
     if ( ! avl_insert_by_node( tree, &block->node ) ) {
       free( block );
       return false;
@@ -359,7 +359,7 @@ void interrupt_handle( const size_t num, const interrupt_type_t type, void* cont
   #endif
 
   // try to get node by interrupt
-  avl_node_t* node = avl_find_by_data( tree, ( void* )num );
+  avl_node_t* node = avl_find_by_data( tree, num );
   // debug output
   #if defined( PRINT_INTERRUPT )
     DEBUG_OUTPUT( "Found node %p\r\n", node )

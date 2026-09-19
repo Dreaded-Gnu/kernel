@@ -70,14 +70,15 @@ static int32_t compare_callback( const avl_node_t* a, const avl_node_t* b ) {
  */
 static int32_t lookup_callback(
   const avl_node_t* a,
-  const void* b
+  const uint64_t b
 ) {
   const rpc_origin_source_t* block = RPC_GET_ORIGIN_SOURCE( a );
   // -1 if address of a->data is greater than address of b->data
-  if ( block->rpc_id > ( size_t )b) {
+  if ( block->rpc_id > b) {
     return -1;
+  }
   // 1 if address of b->data is greater than address of a->data
-  } else if ( ( size_t )b > block->rpc_id ) {
+  if ( b > block->rpc_id ) {
     return 1;
   }
   // equal => return 0
@@ -105,7 +106,7 @@ static int32_t lookup_callback(
  */
 static void cleanup_callback( avl_node_t* a ) {
   // get block from node
-  auto block = RPC_GET_ORIGIN_SOURCE( a );
+  auto const block = RPC_GET_ORIGIN_SOURCE( a );
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT( "removing block %p!\r\n", block )
@@ -123,7 +124,7 @@ static void cleanup_callback( avl_node_t* a ) {
  */
 rpc_origin_source_t* rpc_generic_source_info( const size_t id ) {
   // try to find node by data
-  avl_node_t* node = avl_find_by_data( origin_tree, ( void* )id );
+  avl_node_t* node = avl_find_by_data( origin_tree, id );
   if ( ! node ) {
     // debug output
     #if defined( PRINT_RPC )
@@ -371,7 +372,7 @@ rpc_backup_t* rpc_generic_raise(
     rpc_info->sync = sync;
     rpc_info->type = type;
     // prepare node
-    avl_prepare_node( &rpc_info->node, ( void* )backup->data_id );
+    avl_prepare_node( &rpc_info->node, backup->data_id );
     // add to tree
     if ( ! avl_insert_by_node( origin_tree, &rpc_info->node ) ) {
       // debug output

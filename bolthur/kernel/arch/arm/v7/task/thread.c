@@ -48,13 +48,13 @@
  *
  * @param entry entry point of the thread
  * @param process thread process
- * @param priority thread priority
+ * @param nice_level thread nice_level
  * @return task_thread_t* pointer to thread structure
  */
 task_thread_t* task_thread_create(
   uintptr_t entry,
   task_process_t* process,
-  size_t priority
+  size_t nice_level
 ) {
   // debug output
   #if defined( PRINT_PROCESS )
@@ -211,14 +211,16 @@ task_thread_t* task_thread_create(
   // populate thread data
   task_thread_set_state( thread, TASK_THREAD_STATE_READY );
   thread->entry = entry;
-  thread->id = task_thread_generate_id( process );
-  thread->priority = priority;
+  thread->id = task_thread_generate_id();
   thread->process = process;
   thread->stack_physical = stack_physical;
   thread->stack_virtual = stack_virtual;
   thread->stack_size = STACK_SIZE;
+  thread->nice_level = nice_level;
+  thread->vruntime = 0;
+  thread->weight = task_thread_priority_weight[ thread->nice_level + 20 ];
   // prepare node
-  avl_prepare_node( &thread->node_id, ( void* )thread->id );
+  avl_prepare_node( &thread->node_id, ( uint64_t )thread->id );
   // add to tree
   if ( ! avl_insert_by_node( process->thread_manager, &thread->node_id ) ) {
     task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
@@ -237,23 +239,8 @@ task_thread_t* task_thread_create(
     free( thread );
     return nullptr;
   }
-
-  // get thread queue by priority
-  task_priority_queue_t* queue = task_queue_get_queue(
-    process_manager, priority );
-  if (
-    ! queue
-    // add thread to thread list for switching
-    || ! list_push_back_data( queue->thread_list, thread )
-  ) {
-    avl_remove_by_node( process->thread_manager, &thread->node_id );
-    task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
-    virt_unmap_address( process->virtual_context, stack_virtual, true );
-    free( thread->current_context );
-    free( thread );
-    return nullptr;
-  }
-
+  // enqueue thread
+  task_queue_enqueue( thread );
   // return created thread
   return thread;
 }
@@ -290,8 +277,7 @@ task_thread_t* task_thread_fork(
 
   // populate data
   thread->process = forked_process;
-  thread->id = task_thread_generate_id( forked_process );
-  thread->priority = thread_to_fork->priority;
+  thread->id = task_thread_generate_id();
   thread->stack_virtual = thread_to_fork->stack_virtual;
   thread->entry = thread_to_fork->entry;
   thread->handling_interrupt = thread_to_fork->handling_interrupt;
@@ -299,6 +285,10 @@ task_thread_t* task_thread_fork(
     thread->process->virtual_context,
     thread->stack_virtual
   );
+  // copy over weight, vruntime and nice level
+  thread->weight = thread_to_fork->weight;
+  thread->vruntime = thread_to_fork->vruntime;
+  thread->nice_level = thread_to_fork->nice_level;
 
   thread->stack_size = thread_to_fork->stack_size;
   task_thread_set_state( thread, TASK_THREAD_STATE_READY );
@@ -330,7 +320,7 @@ task_thread_t* task_thread_fork(
   }
 
   // prepare node
-  avl_prepare_node( &thread->node_id, ( void* )thread->id );
+  avl_prepare_node( &thread->node_id, ( uint64_t )thread->id );
   // add to tree
   if ( ! avl_insert_by_node( thread->process->thread_manager, &thread->node_id ) ) {
     task_stack_manager_remove(
@@ -352,26 +342,7 @@ task_thread_t* task_thread_fork(
     free( thread );
     return nullptr;
   }
-  // get thread queue by priority
-  task_priority_queue_t* queue = task_queue_get_queue(
-    process_manager,
-    thread->priority
-  );
-  if (
-    ! queue
-    // add thread to thread list for switching
-    || ! list_push_back_data( queue->thread_list, thread )
-  ) {
-    task_stack_manager_remove(
-      thread->stack_virtual,
-      thread->process->thread_stack_manager
-    );
-    avl_remove_by_node( thread->process->thread_manager, &thread->node_id );
-    free( thread->current_context );
-    free( thread );
-    return nullptr;
-  }
-
+  task_queue_enqueue( thread );
   return thread;
 }
 

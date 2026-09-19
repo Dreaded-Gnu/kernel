@@ -48,7 +48,7 @@ static int32_t compare_ioctl(
 }
 
 /**
- * @fn int32_t lookup_ioctl(const avl_node_t*, const void*)
+ * @fn int32_t lookup_ioctl(const avl_node_t*, uint64_t)
  * @brief Lookup handle callback necessary for avl tree search operations
  *
  * @param node
@@ -57,7 +57,7 @@ static int32_t compare_ioctl(
  */
 static int32_t lookup_ioctl(
   const avl_node_t* node,
-  const void* value
+  const uint64_t value
 ) {
   const pid_t pid = ( pid_t )value;
   auto const container = IOCTL_HANDLER_GET_ENTRY( node );
@@ -106,7 +106,7 @@ static int32_t compare_container(
 }
 
 /**
- * @fn int32_t lookup_container(const avl_node_t*, const void*)
+ * @fn int32_t lookup_container(const avl_node_t*, uint64_t)
  * @brief Lookup handle callback necessary for avl tree search operations
  *
  * @param node
@@ -115,7 +115,7 @@ static int32_t compare_container(
  */
 static int32_t lookup_container(
   const avl_node_t* node,
-  const void* value
+  const uint64_t value
 ) {
   const uint32_t command = ( uint32_t )value;
   auto const container = IOCTL_HANDLER_GET_CONTAINER( node );
@@ -168,10 +168,7 @@ ioctl_container_t* ioctl_lookup_command(
   const pid_t process
 ) {
   // try to find command within tree before querying info
-  avl_node_t* found = avl_find_by_data(
-    ioctl_tree,
-    ( void* )process
-  );
+  avl_node_t* found = avl_find_by_data( ioctl_tree, ( uint64_t )process );
   // handle nothing found
   if ( ! found ) {
     return nullptr;
@@ -179,10 +176,7 @@ ioctl_container_t* ioctl_lookup_command(
   // get entry
   auto const entry = IOCTL_HANDLER_GET_ENTRY( found );
   // lookup command
-  found = avl_find_by_data(
-    entry->tree,
-    ( void* )command
-  );
+  found = avl_find_by_data( entry->tree, command );
   // handle nothing found
   if ( ! found ) {
     return nullptr;
@@ -208,10 +202,7 @@ bool ioctl_push_command(
     return true;
   }
   // try to find command within tree before querying info
-  avl_node_t* found = avl_find_by_data(
-    ioctl_tree,
-    ( void* )process
-  );
+  avl_node_t* found = avl_find_by_data( ioctl_tree, ( uint64_t )process );
   ioctl_tree_entry_t* entry = nullptr;
   // handle existing tree
   if ( found ) {
@@ -235,7 +226,7 @@ bool ioctl_push_command(
       return false;
     }
     // prepare and insert node
-    avl_prepare_node( &entry->node, ( void* )process );
+    avl_prepare_node( &entry->node, ( uint64_t )process );
     if ( ! avl_insert_by_node( ioctl_tree, &entry->node ) ) {
       avl_destroy_tree( entry->tree );
       free( entry );
@@ -251,7 +242,7 @@ bool ioctl_push_command(
   memset( container, 0, sizeof( ioctl_container_t ) );
   container->command = command;
   // prepare and insert node
-  avl_prepare_node( &container->node, ( void* )command );
+  avl_prepare_node( &container->node, command );
   if ( ! avl_insert_by_node( entry->tree, &container->node ) ) {
     free( container );
     return false;

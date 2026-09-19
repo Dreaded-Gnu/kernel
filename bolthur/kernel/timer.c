@@ -26,6 +26,7 @@
 #include "rpc/backup.h"
 #include "rpc/generic.h"
 #include "debug/debug.h"
+#include "task/queue.h"
 #if defined( PRINT_TIMER )
   #include "debug/debug.h"
 #endif
@@ -204,6 +205,29 @@ bool timer_unregister_callback( const size_t id ) {
 }
 
 /**
+ * @fn void timer_handle_vruntime( uint64_t )
+ * @brief Function to handle vruntime update
+ * @param ticks passed ticks
+ */
+void timer_handle_vruntime( const uint64_t ticks ) {
+  if ( ! task_thread_current_thread ) {
+    return;
+  }
+  // increase vruntime
+  task_thread_current_thread->vruntime += ticks * TASK_THREAD_NICE_LEVEL_0 / task_thread_current_thread->weight;
+  // get possible next thread
+  auto const thread = task_queue_peek();
+  if ( ! thread ) {
+    return;
+  }
+  assert( thread != task_thread_current_thread );
+  if ( thread->vruntime < task_thread_current_thread->vruntime ) {
+    // schedule process
+    event_enqueue( EVENT_PROCESS );
+  }
+}
+
+/**
  * @fn void timer_handle_callback(void)
  * @brief Handle expired timers
  */
@@ -266,6 +290,14 @@ void timer_handle_callback( void ) {
         current = current->next;
         continue;
       }
+    } else if (
+        TASK_THREAD_STATE_READY == entry->thread->state
+        || TASK_THREAD_STATE_RPC_QUEUED == entry->thread->state
+    ) {
+      // remove from wait queue
+      task_queue_dequeue_blocked( entry->thread );
+      // add to scheduling
+      task_queue_enqueue( entry->thread );
     }
     // cache current and set to next
     list_item_t* to_remove = current;

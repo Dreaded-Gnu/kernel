@@ -43,6 +43,7 @@ size_t timer_generate_id( void );
 timer_callback_entry_t* timer_register_callback( task_thread_t*, size_t, size_t, bool );
 bool timer_unregister_callback( size_t );
 void timer_handle_callback( void );
+void timer_handle_vruntime( uint64_t );
 uint64_t timer_get_current_tick_value( void );
 
 #endif

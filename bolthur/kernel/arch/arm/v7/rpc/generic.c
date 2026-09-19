@@ -26,6 +26,7 @@
 #include "../../../../rpc/backup.h"
 #include "../../../../rpc/data.h"
 #include "../../../../lib/assert.h"
+#include "../../../../task/queue.h"
 #if defined( PRINT_RPC )
   #include "../../../../debug/debug.h"
 #endif
@@ -92,19 +93,19 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   if ( backup->sync_return_on_end ) {
     // populate return for sync request ( rpc raise is waiting at source )
     syscall_populate_success( thread->current_context, backup->sync_return_data_id );
-      #if defined( PRINT_RPC )
-        DEBUG_OUTPUT(
-          "unblock threads of process %d and blocked data %zu\r\n",
-          thread->process->id,
-          backup->sync_return_blocked_data_id
-        )
-      #endif
-      // unblock if necessary
-      task_unblock_threads(
-        thread->process,
-        TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN,
-        ( task_state_data_t ){ .data_size = backup->sync_return_blocked_data_id }
-      );
+    #if defined( PRINT_RPC )
+      DEBUG_OUTPUT(
+        "unblock threads of process %d and blocked data %zu\r\n",
+        thread->process->id,
+        backup->sync_return_blocked_data_id
+      )
+    #endif
+    // unblock if necessary
+    task_unblock_threads(
+      thread->process,
+      TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN,
+      ( task_state_data_t ){ .data_size = backup->sync_return_blocked_data_id }
+    );
   }
 
   // debug output
@@ -403,6 +404,10 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup, const bool measure ) {
     task_thread_set_state( backup->thread, TASK_THREAD_STATE_RPC_ACTIVE );
   } else {
     task_thread_set_state( backup->thread, backup->state_to_use );
+  }
+  if ( TASK_THREAD_STATE_RPC_QUEUED == backup->thread->state ) {
+    task_queue_dequeue_blocked( backup->thread );
+    task_queue_enqueue( backup->thread );
   }
   const uint64_t t_after_thread_set_state = timer_get_current_tick_value();
   backup->prepared = true;

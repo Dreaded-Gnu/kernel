@@ -98,7 +98,7 @@ static void timer_control( uint32_t control ) {
  *
  * @param context
  */
-static void timer_clear( [[maybe_unused]] void* context ) {
+static void timer_clear( void* context ) {
   timer_control( 3 );
   // debug output
   #if defined( PRINT_TIMER )
@@ -111,8 +111,10 @@ static void timer_clear( [[maybe_unused]] void* context ) {
   timer_tick_count += timer_get_interval();
   // handle timers
   timer_handle_callback();
-  // trigger timer event
-  event_enqueue( EVENT_PROCESS );
+  // handle vruntime update
+  if ( ! context ) {
+    timer_handle_vruntime( timer_get_interval() );
+  }
 }
 
 /**

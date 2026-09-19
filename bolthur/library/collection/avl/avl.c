@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 /**
  * @brief buffer helper for output
@@ -50,15 +51,12 @@ static avl_node_t* insert(
   if ( ! root ) {
     return node;
   }
-
-  int32_t result = tree->compare( root, node );
-
+  const int32_t result = tree->compare( root, node );
   if ( -1 == result ) {
     root->left = insert( tree, node, root->left );
   } else {
     root->right = insert( tree, node, root->right );
   }
-
   // return
   return balance( root );
 }
@@ -317,7 +315,7 @@ static avl_node_t* remove_by_node(
  * @return avl_node_t*
  */
 static avl_node_t* remove_by_data(
-  void* data,
+  const uint64_t data,
   avl_node_t* root
 ) {
   // recursive breakpoint
@@ -412,9 +410,9 @@ static void print_recursive( const avl_node_t* node, const avl_print_func_t prin
   // print information
   if ( ! print ) {
     if ( level_index ) {
-      printf( "%s `--%p\r\n", ( const char* )level_buffer, node->data );
+      printf( "%s `--%"PRIx64"\r\n", ( const char* )level_buffer, node->data );
     } else {
-      printf( "%p\r\n", node->data );
+      printf( "%"PRIx64"\r\n", node->data );
     }
   } else {
     if ( level_index ) {
@@ -439,21 +437,18 @@ static void print_recursive( const avl_node_t* node, const avl_print_func_t prin
 }
 
 /**
- * @fn int32_t avl_default_lookup(const avl_node_t*, const void*)
+ * @fn int32_t avl_default_lookup(const avl_node_t*, uint64_t)
  * @brief Default lookup if not passed during creation
  *
  * @param a
  * @param b
  * @return int32_t
  */
-int32_t avl_default_lookup( const avl_node_t* a, const void* b ) {
+int32_t avl_default_lookup( const avl_node_t* a, const uint64_t b ) {
   if ( a->data == b ) {
     return 0;
   }
-
-  return a->data > b
-    ? -1
-    : 1;
+  return a->data > b ? -1 : 1;
 }
 
 /**
@@ -474,9 +469,9 @@ void avl_default_cleanup( [[maybe_unused]] avl_node_t* a ) {}
  * @return avl_tree_t* pointer to new tree
  */
 avl_tree_t* avl_create_tree(
-  avl_compare_func_t compare,
-  avl_lookup_func_t lookup,
-  avl_cleanup_func_t cleanup
+  const avl_compare_func_t compare,
+  const avl_lookup_func_t lookup,
+  const avl_cleanup_func_t cleanup
 ) {
   // reserve space for new tree structure
   auto const new_tree = ( avl_tree_t* )malloc( sizeof( avl_tree_t ) );
@@ -508,13 +503,13 @@ avl_tree_t* avl_create_tree(
 }
 
 /**
- * @fn avl_node_t avl_create_node*(void*)
+ * @fn avl_node_t avl_create_node*(uint64_t)
  * @brief creates and prepares a avl node
  *
  * @param data node data
  * @return avl_node_t*
  */
-avl_node_t* avl_create_node( void* data ) {
+avl_node_t* avl_create_node( const uint64_t data ) {
   // reserve space for new node
   auto const node = ( avl_node_t* )malloc( sizeof( avl_node_t ) );
   // check
@@ -574,14 +569,14 @@ bool avl_insert_by_node( avl_tree_t* tree, avl_node_t* node ) {
 }
 
 /**
- * @fn avl_node_t avl_find_by_data*(const avl_tree_t*, void*)
+ * @fn avl_node_t avl_find_by_data*(const avl_tree_t*, uint64_t)
  * @brief Find an avl node within tree
  *
  * @param tree tree to search
  * @param data data to lookup
  * @return avl_node_t* found node or nullptr
  */
-avl_node_t* avl_find_by_data( const avl_tree_t* tree, const void* data ) {
+avl_node_t* avl_find_by_data( const avl_tree_t* tree, const uint64_t data ) {
   // end point
   if ( ! tree || ! tree->root ) {
     return nullptr;
@@ -746,13 +741,13 @@ avl_node_t* avl_get_min( avl_node_t* root ) {
 }
 
 /**
- * @fn void avl_prepare_node(avl_node_t*, void*)
+ * @fn void avl_prepare_node(avl_node_t*, uint64_t)
  * @brief method to prepare some node
  *
  * @param node node to prepare
  * @param data initial node data
  */
-void avl_prepare_node( avl_node_t* node, void* data ) {
+void avl_prepare_node( avl_node_t* node, const uint64_t data ) {
   node->left = nullptr;
   node->right = nullptr;
   node->data = data;
@@ -774,13 +769,13 @@ void avl_print( const avl_tree_t* tree, const avl_print_func_t print ) {
 }
 
 /**
- * @fn void avl_remove_by_data(avl_tree_t*, void*)
+ * @fn void avl_remove_by_data(avl_tree_t*, uint64_t)
  * @brief Remove an avl node from tree
  *
  * @param tree tree to search in
  * @param data data of node to find
  */
-void avl_remove_by_data( avl_tree_t* tree, void* data ) {
+void avl_remove_by_data( avl_tree_t* tree, const uint64_t data ) {
   tree->root = remove_by_data( data, tree->root );
 }
 

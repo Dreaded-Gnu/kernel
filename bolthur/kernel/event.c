@@ -120,7 +120,7 @@ bool event_bind( const event_type_t type, const event_callback_t callback, const
   avl_tree_t* tree = event->tree;
 
   // try to find node
-  avl_node_t* node = avl_find_by_data( tree, ( void* )type );
+  avl_node_t* node = avl_find_by_data( tree, type );
   event_block_t* block;
   // debug output
   #if defined( PRINT_EVENT )
@@ -154,7 +154,7 @@ bool event_bind( const event_type_t type, const event_callback_t callback, const
       return false;
     }
     // prepare and insert node
-    avl_prepare_node( &block->node, ( void* )type );
+    avl_prepare_node( &block->node, type );
     if ( ! avl_insert_by_node( tree, &block->node ) ) {
       free( block->handler );
       free( block->post );
@@ -290,7 +290,7 @@ void event_handle( void* data ) {
   while ( bitmap ) {
     auto const type = ( event_type_t )__builtin_ctz( bitmap );
     // get type node
-    avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
+    avl_node_t* node = avl_find_by_data( event->tree, type );
     if ( ! node ) {
       // mask bit
       bitmap &= ( bitmap - 1 );
@@ -328,7 +328,7 @@ void event_handle( void* data ) {
     // mask bit
     post_bitmap &= ( post_bitmap - 1 );
     // get type node
-    avl_node_t* node = avl_find_by_data( event->tree, ( void* )type );
+    avl_node_t* node = avl_find_by_data( event->tree, type );
     if ( ! node ) {
       // skip rest
       continue;

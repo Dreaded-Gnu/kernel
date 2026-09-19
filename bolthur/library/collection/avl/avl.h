@@ -29,12 +29,12 @@ typedef struct avl_tree avl_tree_t;
 
 // type declarations
 typedef int32_t ( *avl_compare_func_t )( const avl_node_t*, const avl_node_t* );
-typedef int32_t ( *avl_lookup_func_t )( const avl_node_t*, const void* );
+typedef int32_t ( *avl_lookup_func_t )( const avl_node_t*, const uint64_t );
 typedef void ( *avl_cleanup_func_t )( avl_node_t*  );
 typedef void ( *avl_print_func_t )( avl_node_t* );
 
 struct avl_node {
-  void* data;
+  uint64_t data;
   avl_node_t* left;
   avl_node_t* right;
 };
@@ -49,21 +49,21 @@ struct avl_tree {
 avl_node_t* avl_get_max( avl_node_t* );
 avl_node_t* avl_get_min( avl_node_t* );
 void avl_print( const avl_tree_t*, avl_print_func_t );
-void avl_prepare_node( avl_node_t*, void* );
+void avl_prepare_node( avl_node_t*, uint64_t );
 
-avl_node_t* avl_find_by_data( const avl_tree_t*, const void* );
-void avl_remove_by_data( avl_tree_t*, void* );
+avl_node_t* avl_find_by_data( const avl_tree_t*, uint64_t );
+void avl_remove_by_data( avl_tree_t*, uint64_t );
 
 bool avl_insert_by_node( avl_tree_t*, avl_node_t* );
 void avl_remove_by_node( avl_tree_t*, avl_node_t* );
 
 avl_tree_t* avl_create_tree( avl_compare_func_t, avl_lookup_func_t, avl_cleanup_func_t );
-avl_node_t* avl_create_node( void* );
+avl_node_t* avl_create_node( uint64_t );
 void avl_destroy_tree( avl_tree_t* );
 
 avl_node_t* balance( avl_node_t* );
 
-int32_t avl_default_lookup( const avl_node_t* a, const void* );
+int32_t avl_default_lookup( const avl_node_t* a, uint64_t );
 void avl_default_cleanup( avl_node_t* );
 
 avl_node_t* avl_iterate_first( avl_tree_t* );

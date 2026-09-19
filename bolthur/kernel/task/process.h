@@ -46,8 +46,6 @@ typedef struct task_process {
   pid_t id;
   /** parent process id */
   pid_t parent;
-  /** current thread id counter */
-  pid_t current_thread_id;
   /** process priority */
   size_t priority;
   /** virtual context */
@@ -65,13 +63,11 @@ typedef struct task_process {
 } task_process_t;
 
 typedef struct task_manager {
-  // process id tree
+  /** process tree */
   avl_tree_t* process_id;
-  // thread priority tree
-  avl_tree_t* thread_priority;
-  // list of processes to clean up
+  /** list of processes to clean up */
   list_manager_t* process_to_cleanup;
-  // list of threads to clean up
+  /** list of threads to clean up */
   list_manager_t* thread_to_cleanup;
 } task_manager_t;
 
@@ -88,7 +84,7 @@ pid_t task_process_generate_id( void );
 task_process_t* task_process_create( size_t, pid_t );
 task_process_t* task_process_fork( const task_thread_t* );
 bool task_process_prepare_init( task_process_t* );
-uintptr_t task_process_prepare_init_arch( task_process_t* );
+uintptr_t task_process_prepare_init_arch( const task_process_t* );
 task_process_t* task_process_get_by_id( pid_t );
 void task_process_prepare_kill( task_process_t* );
 int task_process_replace( task_process_t*, uintptr_t, const char**, const char** );

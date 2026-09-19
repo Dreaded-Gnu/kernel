@@ -66,7 +66,7 @@ void vector_data_abort_handler( cpu_register_context_t* cpu ) {
     // get faulting address
     const uintptr_t fault = virt_data_fault_address();
     #if defined( PRINT_EXCEPTION )
-    DEBUG_OUTPUT( "data abort while accessing %#"PRIxPTR"\r\n", fault )
+      DEBUG_OUTPUT( "data abort while accessing %#"PRIxPTR"\r\n", fault )
     #endif
     // handle in user stack => extend it
     if (

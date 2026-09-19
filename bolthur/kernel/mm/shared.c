@@ -254,7 +254,7 @@ shared_memory_entry_t* shared_memory_create( size_t len ) {
     return nullptr;
   }
   // prepare node
-  avl_prepare_node( &entry->node, ( void* )entry->id );
+  avl_prepare_node( &entry->node, entry->id );
   // add new item to tree
   if ( ! avl_insert_by_node( shared_tree, &entry->node ) ) {
     destroy_entry( entry );
@@ -302,7 +302,7 @@ uintptr_t shared_memory_attach(
     return 0;
   }
   // try to get node by id
-  avl_node_t* node = avl_find_by_data( shared_tree, ( void* )id );
+  avl_node_t* node = avl_find_by_data( shared_tree, id );
   // handle not existing
   if ( ! node ) {
     // debug output
@@ -483,7 +483,7 @@ size_t shared_memory_size( task_process_t* process, size_t id ) {
     return 0;
   }
   // try to get node by id
-  avl_node_t* node = avl_find_by_data( shared_tree, ( void* )id );
+  avl_node_t* node = avl_find_by_data( shared_tree, id );
   // handle not existing
   if ( ! node ) {
     // debug output
@@ -539,7 +539,7 @@ bool shared_memory_detach( task_process_t* process, size_t id ) {
     return false;
   }
   // try to get node by id
-  avl_node_t* node = avl_find_by_data( shared_tree, ( void* )id );
+  avl_node_t* node = avl_find_by_data( shared_tree, id );
   // handle not existing
   if ( ! node ) {
     // debug output

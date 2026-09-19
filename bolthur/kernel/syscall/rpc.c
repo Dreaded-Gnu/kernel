@@ -26,6 +26,7 @@
 #include "../rpc/data.h"
 #include "../rpc/generic.h"
 #include "../task/process.h"
+#include "../task/queue.h"
 #include "../task/thread.h"
 #if defined( PRINT_SYSCALL )
   #include "../lib/inttypes.h"
@@ -473,7 +474,7 @@ void syscall_rpc_ret( void* context ) {
   // find and destroy possible info for current if original rpc id is set
   // in case it's an interrupt it is not possible to clean up active context
   // since we might have multiple returns
-  if ( original_rpc_id && ! active->is_interrupt ) {
+  if ( original_rpc_id && ! active->is_interrupt && ! active->is_timer ) {
     rpc_generic_destroy_source_info( rpc_generic_source_info( active->data_id ) );
   }
   #if defined( PRINT_SYSCALL )
@@ -641,6 +642,8 @@ void syscall_rpc_wait_for_call( void* context ) {
   }
   // set state
   task_thread_set_state( task_thread_current_thread, TASK_THREAD_STATE_RPC_WAIT_FOR_CALL );
+  // insert in wait queue
+  task_queue_enqueue_blocked( task_thread_current_thread );
   // debug output
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
@@ -725,6 +728,9 @@ void syscall_rpc_end( [[maybe_unused]] void* context ) {
   }
   // enqueue scheduler
   if ( ! task_thread_is_active( task_thread_current_thread ) ) {
+    // insert in wait queue
+    task_queue_enqueue_blocked( task_thread_current_thread );
+    // enqueue process
     event_enqueue( EVENT_PROCESS );
   }
 }
