@@ -20,8 +20,6 @@
 #ifndef _PLATFORM_RASPI_TIMER_H
 #define _PLATFORM_RASPI_TIMER_H
 
-#define TIMER_INTERRUPT_PER_FREQUENCY 50
-
 // Timer match bits
 #define ARM_CORE0_TIMER_MATCH ( 1 << 3 )
 

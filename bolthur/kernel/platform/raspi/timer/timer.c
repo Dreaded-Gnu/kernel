@@ -168,7 +168,7 @@ size_t timer_get_frequency( void ) {
  * @return
  */
 size_t timer_get_interval( void ) {
-  return timer_get_frequency() / TIMER_INTERRUPT_PER_FREQUENCY;
+  return timer_get_frequency() / TIMER_INTERRUPT_FREQUENCY;
 }
 
 /**

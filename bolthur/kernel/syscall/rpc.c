@@ -443,16 +443,16 @@ void syscall_rpc_ret( void* context ) {
       }
       // in case there is no target, use source and treat it as async
       // use first possible process
-      avl_node_t* current = avl_iterate_first( proc->thread_manager );
       target = nullptr;
+      auto current = proc->free_thread_list->first;
       // loop until usable thread has been found
       while ( current && ! target ) {
         // get thread
-        auto const tmp = TASK_THREAD_GET_BLOCK( current );
+        auto const tmp = ( task_thread_t* )current->data;
         // FIXME: CHECK IF ACTIVE
         target = tmp;
         // get next thread
-        current = avl_iterate_next( proc->thread_manager, current );
+        current = current->next;
       }
       // handle no inactive thread
       if ( ! target ) {

@@ -140,7 +140,7 @@ static shared_memory_entry_t* create_entry( size_t size ) {
   // round up to full size
   size = ROUND_UP_TO_FULL_PAGE( size );
   // determine count
-  size_t count = size / PAGE_SIZE;
+  const size_t count = size / PAGE_SIZE;
   // allocate address list
   entry->address = calloc( count, sizeof( uint64_t ) );
   // check
@@ -280,7 +280,7 @@ shared_memory_entry_t* shared_memory_create( size_t len ) {
  */
 uintptr_t shared_memory_attach(
   task_process_t* process,
-  task_thread_t* thread,
+  const task_thread_t* thread,
   size_t id,
   uintptr_t virt_start
 ) {

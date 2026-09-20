@@ -22,6 +22,8 @@
 
 #include <stddef.h>
 
+#define TIMER_INTERRUPT_FREQUENCY 1000
+
 typedef struct task_thread task_thread_t;
 
 typedef struct {

@@ -150,8 +150,10 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
   if (
     task_thread_try_switch_to
     && (
-      task_thread_try_switch_to->state == TASK_THREAD_STATE_READY
-      || task_thread_try_switch_to->state == TASK_THREAD_STATE_RPC_QUEUED
+      TASK_THREAD_STATE_READY == task_thread_try_switch_to->state
+      || TASK_THREAD_STATE_RPC_QUEUED == task_thread_try_switch_to->state
+      || TASK_THREAD_STATE_HALT_SWITCH == task_thread_try_switch_to->state
+      || TASK_THREAD_STATE_RPC_HALT_SWITCH == task_thread_try_switch_to->state
     )
   ) {
     next_thread = task_thread_try_switch_to;
@@ -188,8 +190,10 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
         if (
           task_thread_try_switch_to
           && (
-            task_thread_try_switch_to->state == TASK_THREAD_STATE_READY
-            || task_thread_try_switch_to->state == TASK_THREAD_STATE_RPC_QUEUED
+            TASK_THREAD_STATE_READY == task_thread_try_switch_to->state
+            || TASK_THREAD_STATE_RPC_QUEUED == task_thread_try_switch_to->state
+            || TASK_THREAD_STATE_HALT_SWITCH == task_thread_try_switch_to->state
+            || TASK_THREAD_STATE_RPC_HALT_SWITCH == task_thread_try_switch_to->state
           )
         ) {
           next_thread = task_thread_try_switch_to;
