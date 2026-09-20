@@ -25,6 +25,7 @@ libv7_la_SOURCES = \
   stub/stack.S \
   stub/start.S \
   syscall/interrupt.c \
+  syscall/timer.c \
   task/process.c \
   task/stack.c \
   task/stub.S \

@@ -41,7 +41,7 @@ void syscall_timer_tick_count( void* context ) {
       task_thread_current_thread->process->id
     )
   #endif
-  syscall_populate_success( context, timer_get_tick() );
+  syscall_populate_success64( context, timer_get_current_tick_value() );
 }
 
 /**
@@ -56,57 +56,6 @@ void syscall_timer_frequency( void* context ) {
     DEBUG_OUTPUT( "syscall_timer_frequency()\r\n" )
   #endif
   syscall_populate_success( context, timer_get_frequency() );
-}
-
-/**
- * @fn void syscall_timer_acquire(void*)
- * @brief Acquire to pause thread until timer resolved
- *
- * @param context
- *
- * @todo rework to expect timeout as nanoseconds
- */
-void syscall_timer_acquire( void* context ) {
-  // parameters
-  const size_t rpc_num = syscall_get_parameter( context, 0 );
-  const size_t timeout = syscall_get_parameter( context, 1 );
-  const bool interruptable = syscall_get_parameter( context, 2 );
-  // debug output
-  #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT( "syscall_timer_acquire( %zu, %zu )\r\n", rpc_num, timeout )
-  #endif
-  // handle timeout already reached
-  if ( timeout <= timer_get_tick() ) {
-    // debug output
-    #if defined( PRINT_SYSCALL )
-      DEBUG_OUTPUT( "timer already in the past\r\n" )
-    #endif
-    // return success without doing anything
-    syscall_populate_success( context, 0 );
-    return;
-  }
-  // add to timer
-  timer_callback_entry_t* item = timer_register_callback(
-    task_thread_current_thread,
-    rpc_num,
-    timeout,
-    interruptable
-  );
-  // handle error
-  if ( ! item ) {
-    // debug output
-    #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT( "Unable to acquire timer\r\n" )
-    #endif
-    syscall_populate_error( context, ( size_t )-EAGAIN );
-    return;
-  }
-  // debug output
-  #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT( "item->id = %zu\r\n", item->id )
-  #endif
-  // return success by returning timer id
-  syscall_populate_success( context, item->id );
 }
 
 /**

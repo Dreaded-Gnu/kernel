@@ -53,6 +53,7 @@ typedef enum {
   DWHCI_QUEUE_POLL_STATUS_ACK ,
   DWHCI_QUEUE_POLL_STATUS_DONE,
   DWHCI_QUEUE_POLL_STATUS_WAIT,
+  DWHCI_QUEUE_POLL_STATUS_CANCEL,
 
   DWHCI_QUEUE_CANCEL,
   DWHCI_QUEUE_CANCEL_DONE,
@@ -105,7 +106,7 @@ typedef struct channel_queue_entry {
   /** poll channel state */
   dwhci_channel_state_t poll_state;
   /** last poll timer */
-  size_t poll_last_timer;
+  uint64_t poll_last_timer;
   /** poll timer */
   size_t poll_timer_id;
   /** channel data state */
@@ -114,6 +115,11 @@ typedef struct channel_queue_entry {
   uint32_t packets_to_transfer;
   /** packet size */
   uint32_t packet_size;
+  /** polling timeout */
+  size_t poll_timeout;
+  /** timer frequency */
+  size_t timer_frequency;
+  // debugging stuff
   uint32_t poll_ssplit_frame_num;
   uint32_t poll_csplit_frame_num;
   uint32_t verify_char;

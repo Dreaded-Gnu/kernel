@@ -39,6 +39,24 @@ void syscall_populate_success( void* context, const size_t value ) {
 }
 
 /**
+ * @fn void syscall_populate_success(void*, uint64_t)
+ * @brief Populate single return to caller
+ *
+ * @param context
+ * @param value
+ */
+void syscall_populate_success64( void* context, const uint64_t value ) {
+  // get context
+  context = interrupt_get_context( context );
+  // get cpu context
+  auto const cpu = ( cpu_register_context_t* )context ;
+  // set return values
+  cpu->reg.r0 = ( uint32_t )value; // lower value
+  cpu->reg.r1 = ( uint32_t )( ( value >> 32 ) & 0xFFFFFFFF ); // higher value
+  cpu->reg.r2 = 0;
+}
+
+/**
  * @fn void syscall_populate_error(void*, size_t)
  * @brief Populate error return to caller
  *
@@ -53,6 +71,24 @@ void syscall_populate_error( void* context, const size_t error ) {
   // set return values
   cpu->reg.r0 = 0;
   cpu->reg.r1 = error;
+}
+
+/**
+ * @fn void syscall_populate_error(void*, size_t)
+ * @brief Populate error return to caller
+ *
+ * @param context
+ * @param error
+ */
+void syscall_populate_error64( void* context, const size_t error ) {
+  // get context
+  context = interrupt_get_context( context );
+  // get cpu context
+  auto const cpu = ( cpu_register_context_t* )context ;
+  // set return values
+  cpu->reg.r0 = 0;
+  cpu->reg.r1 = 0;
+  cpu->reg.r2 = error;
 }
 
 /**

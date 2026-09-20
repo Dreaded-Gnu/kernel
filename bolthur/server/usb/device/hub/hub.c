@@ -40,14 +40,13 @@ static void custom_nanosleep( const struct timespec* rqtp ) {
   // get clock frequency
   size_t frequency = _syscall_timer_frequency();
   // calculate second timeout
-  size_t timeout = ( size_t )( rqtp->tv_sec * frequency );
-  size_t tick;
+  uint64_t timeout = ( uint64_t )( rqtp->tv_sec * frequency );
   // add nanosecond offset
-  timeout += ( size_t )( ( double )rqtp->tv_nsec * ( double )frequency / 1000000000.0 );
+  timeout += ( uint64_t )( ( double )rqtp->tv_nsec * ( double )frequency / 1000000000.0 );
   // add tick count to get an end time
   timeout += _syscall_timer_tick_count();
   // loop until timeout is reached
-  while ( ( tick = _syscall_timer_tick_count() ) < timeout ) {
+  while ( _syscall_timer_tick_count() < timeout ) {
     __asm__ __volatile__( "nop" );
   }
 }

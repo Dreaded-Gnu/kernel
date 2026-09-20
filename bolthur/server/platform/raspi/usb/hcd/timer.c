@@ -33,9 +33,9 @@ size_t timer_acquire( const uint32_t milliseconds ) {
   // translate into seconds
   const double seconds = (double)milliseconds / 1000.0;
   // calculate second timeout
-  size_t timeout = ( size_t )( seconds * frequency );
+  uint64_t timeout = ( uint64_t )( seconds * frequency );
   // add tick count to get an end time
   timeout += _syscall_timer_tick_count();
   // register timer
-  return _syscall_timer_acquire( RPC_TIMER, timeout, false );
+  return _syscall_timer_acquire( timeout, RPC_TIMER, false );
 }

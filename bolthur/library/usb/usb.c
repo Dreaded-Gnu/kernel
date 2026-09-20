@@ -1185,8 +1185,8 @@ int usb_stop_transmission( const uint32_t device_number ) {
 }
 
 /**
- * @fn int usb_interrupt_poll_async(uint32_t, libusb_transfer_t, uint32_t. libusb_direction_t, void*, size_t, size_t)
- * @brief Wrapper to perform async interrupt poll
+ * @fn int usb_interrupt_poll_async(uint32_t, libusb_transfer_t, uint32_t. libusb_direction_t, void*, size_t, size_t, size_t)
+ * @brief Function to start async interrupt poll
  * @param device_number
  * @param transfer
  * @param endpoint_number
@@ -1194,6 +1194,7 @@ int usb_stop_transmission( const uint32_t device_number ) {
  * @param buffer
  * @param buffer_length
  * @param interval
+ * @param timeout
  * @return
  */
 int usb_interrupt_poll_async(
@@ -1203,7 +1204,8 @@ int usb_interrupt_poll_async(
   const libusb_direction_t direction,
   const void* buffer,
   const size_t buffer_length,
-  const size_t interval
+  const size_t interval,
+  const size_t timeout
 ) {
   // debug output
   #if defined( LIBUSB_ENABLE_DEBUG )
@@ -1244,6 +1246,7 @@ int usb_interrupt_poll_async(
   message->direction = direction;
   message->buffer_length = buffer_length;
   message->interval = interval;
+  message->timeout = timeout;
   if ( LIBUSB_DIRECTION_OUT == direction && buffer ) {
     memcpy( &message->buffer[ 0 ], buffer, buffer_length );
   } else {

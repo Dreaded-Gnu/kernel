@@ -139,7 +139,7 @@ void timer_init( void ) {
 }
 
 /**
- * @fn timer_callback_entry_t* timer_register_callback(task_thread_t*, size_t, size_t, bool)
+ * @fn timer_callback_entry_t* timer_register_callback(task_thread_t*, size_t, uint64_t, bool)
  * @brief Register timer callback
  * @param thread
  * @param rpc_num
@@ -150,7 +150,7 @@ void timer_init( void ) {
 timer_callback_entry_t* timer_register_callback(
   task_thread_t* thread,
   const size_t rpc_num,
-  const size_t timeout,
+  const uint64_t timeout,
   const bool interruptable
 ) {
   // reserve new entry structure
@@ -237,7 +237,7 @@ void timer_handle_callback( void ) {
     return;
   }
   // get current tick
-  const size_t tick = timer_get_tick();
+  const uint64_t tick = timer_get_current_tick_value();
   list_item_t* current = timer_list->first;
   // loop through handles
   while( current ) {

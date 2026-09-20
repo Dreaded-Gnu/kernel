@@ -204,6 +204,7 @@ int mouse_start_polling( libusb_mouse_device_t* device ) {
     LIBUSB_DIRECTION_IN,
     device->buffer,
     MOUSE_REPORT_SIZE,
+    device->descriptor.interval,
     device->descriptor.interval
   );
   // handle error

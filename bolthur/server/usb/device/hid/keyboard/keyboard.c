@@ -213,6 +213,7 @@ int keyboard_start_polling( libusb_keyboard_device_t* device ) {
     LIBUSB_DIRECTION_IN,
     device->buffer,
     KEYBOARD_REPORT_SIZE,
+    device->descriptor.interval,
     device->descriptor.interval
   );
   // handle error

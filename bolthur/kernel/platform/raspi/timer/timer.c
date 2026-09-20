@@ -30,8 +30,6 @@
   #include "../../debug/debug.h"
 #endif
 
-static size_t timer_tick_count;
-
 /**
  * @fn void timer_init_clock(void)
  * @brief Setup timer clock
@@ -107,8 +105,6 @@ static void timer_clear( void* context ) {
   // set new interval
   timer_set_interval( timer_get_interval() );
   timer_control( 1 );
-  // increment tick count by interval
-  timer_tick_count += timer_get_interval();
   // handle timers
   timer_handle_callback();
   // handle vruntime update
@@ -122,8 +118,6 @@ static void timer_clear( void* context ) {
  * @brief Initialize timer
  */
 void timer_platform_init( void ) {
-  // initialize timer ticks
-  timer_tick_count = 0;
   // register handler
   interrupt_register_handler(
     ARM_CORE0_TIMER_INTERRUPT,
@@ -169,14 +163,4 @@ size_t timer_get_frequency( void ) {
  */
 size_t timer_get_interval( void ) {
   return timer_get_frequency() / TIMER_INTERRUPT_FREQUENCY;
-}
-
-/**
- * @fn size_t timer_get_tick(void)
- * @brief Method to get timer tick counts
- *
- * @return
- */
-size_t timer_get_tick( void ) {
-  return timer_tick_count;
 }

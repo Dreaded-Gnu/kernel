@@ -639,7 +639,13 @@ response_t dwhci_channel_send_async_stop_channel( channel_queue_entry_t* entry, 
     }
   }
   // start stop channel by setting enable and disable
-  if ( DWHCI_QUEUE_CANCEL == entry->status && ! free_channel ) {
+  if (
+    ! free_channel
+    && (
+      DWHCI_QUEUE_CANCEL == entry->status
+      || DWHCI_QUEUE_POLL_STATUS_CANCEL == entry->status
+    )
+  ) {
     #if defined( DWHCI_ENABLE_DEBUG )
       EARLY_STARTUP_PRINT( "Channel not halted, halting now: %#x / %d\r\n", entry->transfer_status, entry->channel )
       EARLY_STARTUP_PRINT( "Status = %d\r\n", entry->status )
@@ -663,7 +669,19 @@ response_t dwhci_channel_send_async_stop_channel( channel_queue_entry_t* entry, 
       characteristic |= HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
       mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
     } else {
-      entry->status = DWHCI_QUEUE_CANCEL_DONE;
+      if ( DWHCI_QUEUE_POLL_STATUS_CANCEL == entry->status ) {
+        // continue with ack
+        entry->status = DWHCI_QUEUE_POLL_STATUS_ACK;
+        // reset split phase
+        if ( entry->split_phase != DWHCI_SPLIT_PHASE_NONE ) {
+          entry->split_phase = DWHCI_SPLIT_PHASE_SSPLIT;
+        }
+        // fake a nack
+        entry->error = LIBUSB_TRANSFER_ERROR_NO_ACKNOWLEDGE;
+      } else {
+        // continue with cancel done
+        entry->status = DWHCI_QUEUE_CANCEL_DONE;
+      }
       return dwhci_channel_async_continue( entry );
     }
   }
@@ -1161,8 +1179,9 @@ response_t dwhci_channel_async_continue( channel_queue_entry_t* entry ) {
       return dwhci_channel_poll_async_done( entry );
     case DWHCI_QUEUE_POLL_STATUS_WAIT:
       return HCD_RESPONSE_OK;
-    // cancellation
+    // cancellation ( regular and poll cancellation )
     case DWHCI_QUEUE_CANCEL:
+    case DWHCI_QUEUE_POLL_STATUS_CANCEL:
       return dwhci_channel_send_cancel( entry );
     case DWHCI_QUEUE_CANCEL_DONE:
       return dwhci_channel_send_cancel_done( entry );
@@ -1438,12 +1457,11 @@ response_t dwhci_channel_poll_async_done( channel_queue_entry_t* entry ) {
   // check interval
   size_t wait_time = 0;
   if ( entry->poll_last_timer > 0 ) {
-    // get frequency and current tick count
-    const size_t frequency = _syscall_timer_frequency();
-    const size_t current_tick_count = _syscall_timer_tick_count();
+    // get current tick count
+    const uint64_t current_tick_count = _syscall_timer_tick_count();
     // calculate difference and finally passed milliseconds
-    const size_t difference = current_tick_count - entry->poll_last_timer;
-    const size_t passed_milliseconds = ( size_t )( ( ( double )difference / ( double )frequency ) * 1000.0 );
+    const uint64_t difference = current_tick_count - entry->poll_last_timer;
+    const size_t passed_milliseconds = ( size_t )( ( ( double )difference / ( double )entry->timer_frequency ) * 1000.0 );
     #if defined( DWHCI_ENABLE_DEBUG )
       EARLY_STARTUP_PRINT( "passed_milliseconds = %zu\r\n", passed_milliseconds )
       EARLY_STARTUP_PRINT( "difference = %zu\r\n", difference )
@@ -1605,6 +1623,8 @@ response_t dwhci_channel_poll_async(
   entry->message = dup_message;
   entry->message_size = sizeof( *dup_message );
   entry->interval = data->interval;
+  entry->poll_timeout = data->timeout;
+  entry->timer_frequency = _syscall_timer_frequency();
   entry->poll_state = DWHCI_CHANNEL_STATE_DATA0;
   // initialize split phase
   entry->split_phase = LIBUSB_SPEED_HIGH != data->pipe_address.speed ? DWHCI_SPLIT_PHASE_SSPLIT : DWHCI_SPLIT_PHASE_NONE;

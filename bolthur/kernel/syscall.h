@@ -70,7 +70,9 @@
 
 bool syscall_init( void );
 void syscall_populate_success( void*, size_t );
+void syscall_populate_success64( void*, uint64_t );
 void syscall_populate_error( void*, size_t );
+void syscall_populate_error64( void*, size_t );
 size_t syscall_get_parameter( void*, size_t );
 bool syscall_validate_address( uintptr_t, size_t );
 
