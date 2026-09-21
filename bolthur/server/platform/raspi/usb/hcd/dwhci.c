@@ -1060,7 +1060,7 @@ response_t dwhci_channel_send_async_done( channel_queue_entry_t* entry ) {
  */
 response_t dwhci_channel_send_cancel( channel_queue_entry_t* entry ) {
   // handle not correct status
-  if ( entry->status != DWHCI_QUEUE_CANCEL ) {
+  if ( DWHCI_QUEUE_CANCEL != entry->status && DWHCI_QUEUE_POLL_STATUS_CANCEL != entry->status ) {
     return HCD_RESPONSE_ERROR_EINVAL;
   }
   // stop transmission
@@ -1344,6 +1344,17 @@ response_t dwhci_channel_poll_async_data( channel_queue_entry_t* entry ) {
     // return result
     return result;
   }
+  // acquire timeout
+  entry->timer = timer_acquire( entry_data->timeout );
+  // handle error
+  if ( errno ) {
+    // debug output
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Unable to acquire timeout\r\n" )
+    #endif
+    // return error
+    return HCD_RESPONSE_ERROR_IO;
+  }
   // start send data packet
   return dwhci_channel_send_async_start_channel( entry );
 }
@@ -1393,6 +1404,15 @@ response_t dwhci_channel_poll_async_done( channel_queue_entry_t* entry ) {
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "Handling finished request\r\n" )
   #endif
+  // handle timer
+  if ( entry->timer ) {
+    #if defined( DWHCI_ENABLE_DEBUG )
+      EARLY_STARTUP_PRINT( "Clearing timeout\r\n" )
+    #endif
+    // clear timer and reset
+    _syscall_timer_release( entry->timer );
+    entry->timer = 0;
+  }
   // set error processing if error occurred
   if ( entry->error ) {
     // debug output

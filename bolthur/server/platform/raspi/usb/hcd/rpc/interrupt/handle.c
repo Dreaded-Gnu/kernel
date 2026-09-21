@@ -333,7 +333,7 @@ void rpc_interrupt_handle(
           // reset error
           entry->error = 0;
           // write int mask again
-          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ),
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( channel ),
             HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
             | HCD_CHANNEL_INTERRUPT_HALT
             | HCD_CHANNEL_INTERRUPT_ERROR_MASK
@@ -348,10 +348,10 @@ void rpc_interrupt_handle(
             mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ), split_control );
           }
           // read character and enable it again
-          uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+          uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ) );
           characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
           characteristic |= HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
-          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ), characteristic );
           // assign channel
           channel_mask <<= 1;
           // skip rest
@@ -401,7 +401,7 @@ void rpc_interrupt_handle(
               | HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( packet_count );
             mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_XFER_SIZE( channel ), transfer_data );
             // write int mask again
-            mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ),
+            mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( channel ),
               HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE
               | HCD_CHANNEL_INTERRUPT_HALT
               | HCD_CHANNEL_INTERRUPT_ERROR_MASK
@@ -426,14 +426,14 @@ void rpc_interrupt_handle(
             const uint32_t target_linear_uframe = current_linear_uframe + 1;
             const uint32_t target_frame = ( target_linear_uframe / 8 ) & 0x7FF;
             // read out host chan character, ensure that disable bit is not set, set enable
-            uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ) );
+            uint32_t characteristic = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ) );
             characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_DISABLE( 1 );
             characteristic &= ~HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( 1 );
             characteristic |= HCD_DWHCI_CHAN_CHARACTER_ODD_FRAME( target_frame & 1 );
             characteristic |= HCD_DWHCI_CHAN_CHARACTER_ENABLE( 1 );
             entry->poll_csplit_frame_num = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
             // write back character
-            mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( entry->channel ), characteristic );
+            mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_CHARACTER( channel ), characteristic );
             // debug output
             #if defined( DWHCI_ENABLE_DEBUG )
               EARLY_STARTUP_PRINT(
@@ -459,6 +459,7 @@ void rpc_interrupt_handle(
               EARLY_STARTUP_PRINT( "split_control = %#"PRIx32"\r\n", split_control )
               EARLY_STARTUP_PRINT( "transfer_data = %#"PRIx32"\r\n", transfer_data )
               EARLY_STARTUP_PRINT( "characteristic = %#"PRIx32"\r\n", characteristic )
+              EARLY_STARTUP_PRINT( "entry->channel = %"PRIu32"\r\n", channel )
             #endif
             // assign channel
             channel_mask <<= 1;
@@ -469,9 +470,12 @@ void rpc_interrupt_handle(
           entry->status = DWHCI_QUEUE_POLL_STATUS_CANCEL;
         }
 
-        if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
-          EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
-        }
+        // debug output
+        #if defined( DWCHI_ENABLE_DEBUG )
+          if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
+            EARLY_STARTUP_PRINT( "cipt = %#"PRIx32"\r\n", cipt )
+          }
+        #endif
 
         // handle split complete to overwrite transferred in case it's not a
         // short response
