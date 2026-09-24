@@ -109,10 +109,10 @@ void rpc_interrupt_handle(
   const uint32_t interrupt = mmio_read( PERIPHERAL_DWHCI_CORE_INT_STAT );
   #if defined( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "interrupt = %#"PRIx32"\r\n", interrupt )
+    if ( ! interrupt ) {
+      EARLY_STARTUP_PRINT( "interrupt is 0\r\n" )
+    }
   #endif
-  if ( ! interrupt ) {
-    EARLY_STARTUP_PRINT( "interrupt is 0\r\n" )
-  }
   // mask pending interrupts
   mmio_write( PERIPHERAL_DWHCI_CORE_INT_STAT, interrupt );
   uint32_t channel_interrupt = 0;
@@ -588,8 +588,8 @@ void rpc_interrupt_handle(
           && ! switch_to_next_state
           && (
             (
-              entry->packets_to_transfer > 0
-              && DWHCI_SPLIT_PHASE_NONE == entry->packets_to_transfer
+              entry->buffer_size_to_transfer > 0
+              && DWHCI_SPLIT_PHASE_NONE == entry->split_phase
             ) || (
               entry->buffer_size_to_transfer > 0
               && split_complete

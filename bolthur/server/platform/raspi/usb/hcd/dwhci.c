@@ -56,7 +56,7 @@ int fd_iomem = -1;
 dwhci_configuration_t configuration;
 
 /**
- * @fn response_t dwhci_prepare_channel(uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, libusb_pipe_address_t*, bool, channel_queue_entry_t*)
+ * @fn response_t dwhci_prepare_channel(uint32_t, uint32_t, uint8_t, uint32_t, dwhci_channel_state_t, const libusb_pipe_address_t*, bool, channel_queue_entry_t*)
  * @brief Prepare channel for transfer
  * @param parent_device_number parent device number
  * @param port_number port number
