@@ -99,6 +99,7 @@ static avl_tree_t* tree_by_type( const interrupt_type_t type ) {
  * @return
  *
  * @todo Add removal of tree node, when all lists are empty
+ * @todo Shorten process array registered interrupts if existing
  */
 bool interrupt_unregister_handler(
   const size_t num,
@@ -297,6 +298,32 @@ bool interrupt_register_handler(
   // try to find matching element
   if ( process ) {
     if ( ! block->external ) {
+      bool found = false;
+      for ( size_t i = 0; i < process->registered_interrupts_size; i++ ) {
+        if ( process->registered_interrupts[ i ] == num ) {
+          found = true;
+          break;
+        }
+      }
+      if ( ! found ) {
+        if ( ! process->registered_interrupts ) {
+          process->registered_interrupts_size = 1;
+          process->registered_interrupts = calloc( 1, sizeof( uint32_t ) );
+          if ( ! process->registered_interrupts ) {
+            return false;
+          }
+        } else {
+          uint32_t* tmp = calloc( process->registered_interrupts_size + 1, sizeof( uint32_t ) );
+          if ( ! tmp ) {
+            return false;
+          }
+          memcpy( tmp, process->registered_interrupts, sizeof( uint32_t ) * process->registered_interrupts_size );
+          free( process->registered_interrupts );
+          process->registered_interrupts = tmp;
+          process->registered_interrupts_size++;
+        }
+        process->registered_interrupts[ process->registered_interrupts_size - 1 ] = num;
+      }
       block->external = process;
     }
   } else {
@@ -551,18 +578,18 @@ void interrupt_toggle( const interrupt_toggle_state_t state ) {
  * @param process
  */
 void interrupt_unregister_process( const task_process_t* process ) {
-  avl_tree_t* tree = tree_by_type( INTERRUPT_NORMAL );
-  // get first entry
-  avl_node_t* avl_list = avl_iterate_first( tree );
-  while ( avl_list ) {
+  auto const tree = tree_by_type( INTERRUPT_NORMAL );
+  for ( size_t i = 0; i < process->registered_interrupts_size; i++ ) {
+    avl_node_t* node = avl_find_by_data( tree, process->registered_interrupts[ i ] );
+    if ( ! node ) {
+      continue;
+    }
     // get block
-    auto const block = INTERRUPT_GET_BLOCK( avl_list );
+    auto const block = INTERRUPT_GET_BLOCK( node );
     // handle process
     if ( block->external == process ) {
       block->external = nullptr;
     }
-    // get next list
-    avl_list = avl_iterate_next( tree, avl_list );
   }
 }
 

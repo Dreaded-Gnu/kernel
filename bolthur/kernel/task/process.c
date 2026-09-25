@@ -149,6 +149,10 @@ static void task_process_free( task_process_t* proc ) {
   if ( proc->thread_list ) {
     list_destruct( proc->thread_list );
   }
+  // free registered interrupts
+  if ( proc->registered_interrupts ) {
+    free( proc->registered_interrupts );
+  }
   // destroy rpc stuff
   rpc_generic_destroy( proc );
   // free finally structure itself
@@ -351,7 +355,7 @@ task_process_t* task_process_create( const size_t priority, const pid_t parent )
   #endif
 
   // prepare structure
-  memset( ( void* )process, 0, sizeof( task_process_t ) );
+  memset( process, 0, sizeof( task_process_t ) );
   // populate process structure
   process->id = task_process_generate_id();
   // setup free thread list

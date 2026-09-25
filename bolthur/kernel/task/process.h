@@ -56,6 +56,10 @@ typedef struct task_process {
   uint64_t rpc_mailbox;
   /** mapped virtual address of mailbox */
   uintptr_t rpc_mailbox_virt;
+  /** array of registered interrupts */
+  uint32_t* registered_interrupts;
+  /** array of registered interrupts */
+  size_t registered_interrupts_size;
   /** rpc ready flag */
   bool rpc_ready;
 } task_process_t;
