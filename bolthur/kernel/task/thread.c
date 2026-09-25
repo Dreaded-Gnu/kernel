@@ -57,47 +57,31 @@ const uint32_t task_thread_priority_weight[ 40 ] = {
 
 /**
  * @fn int32_t thread_compare_id_callback(const avl_node_t*, const avl_node_t*)
- * @brief Helper necessary for avl thread manager tree
+ * @brief Helper necessary for thread manager list
  *
  * @param a node a
  * @param b node b
  * @return
  */
-static int32_t thread_compare_id_callback(
-  const avl_node_t* a,
-  const avl_node_t* b
-) {
-  // debug output
-  #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "a = %p, b = %p\r\n", a, b )
-    DEBUG_OUTPUT(
-      "a->data = %zu, b->data = %zu\r\n",
-      ( size_t )a->data,
-      ( size_t )b->data
-    )
-  #endif
-
-  // -1 if address of a->data is greater than address of b->data
-  if ( ( size_t )a->data > ( size_t )b->data ) {
-    return -1;
-  // 1 if address of b->data is greater than address of a->data
-  } else if ( ( size_t )b->data > ( size_t )a->data ) {
-    return 1;
+static int32_t thread_compare_id_callback( const list_item_t* a, const void* b ) {
+  auto const thread = ( task_thread_t* )a->data;
+  if ( thread->id == ( pid_t )b ) {
+    return 0;
   }
-
-  // equal => return 0
-  return 0;
+  return 1;
 }
 
 /**
- * @fn void thread_destroy_callback(avl_node_t*)
- * @brief Helper to destroy avl node
+ * @fn void thread_destroy_callback(list_item_t*)
+ * @brief Helper to destroy list node
  *
  * @param node
+ *
+ * @todo check and revise function
  */
-static void thread_destroy_callback( avl_node_t* node ) {
+static void thread_destroy_callback( list_item_t* node ) {
   // get thread and context
-  auto const thread = TASK_THREAD_GET_BLOCK( node );
+  auto const thread = ( task_thread_t* )node->data;
   const task_process_t* proc = thread->process;
   virt_context_t* ctx = proc->virtual_context;
   // debug output
@@ -128,7 +112,10 @@ static void thread_destroy_callback( avl_node_t* node ) {
   if ( thread->current_context ) {
     free( thread->current_context );
   }
+  // free thread
   free( thread );
+  // call default cleanup
+  list_default_cleanup( node );
 }
 
 /**
@@ -192,16 +179,16 @@ void task_thread_reset_current( void ) {
 }
 
 /**
- * @fn avl_tree_t* task_thread_init(void)
+ * @fn list_manager_t* task_thread_init(void)
  * @brief Create thread manager for task
  *
  * @return
  */
-avl_tree_t* task_thread_init( void ) {
-  return avl_create_tree(
+list_manager_t* task_thread_init( void ) {
+  return list_construct(
     thread_compare_id_callback,
-    nullptr,
-    thread_destroy_callback
+    thread_destroy_callback,
+    nullptr
   );
 }
 
@@ -286,7 +273,7 @@ void task_thread_cleanup(
   // loop
   while ( current ) {
     // get process from item
-    task_thread_t* thread = ( task_thread_t* )current->data;
+    auto const thread = ( task_thread_t* )current->data;
     // skip running
     if ( thread->state != TASK_THREAD_STATE_KILL ) {
       continue;
@@ -305,11 +292,9 @@ void task_thread_cleanup(
     current = current->next;
     // remove node from tree and cleanup
     task_process_t* process = thread->process;
-    avl_remove_by_node( process->thread_manager, &thread->node_id );
-    process->thread_manager->cleanup( &thread->node_id );
+    list_remove_data( process->thread_list, thread, true );
     // check if threads are empty
-    avl_node_t* avl_thread = avl_iterate_first( process->thread_manager );
-    if ( ! avl_thread ) {
+    if ( ! process->thread_list->first ) {
       list_item_t* match = list_lookup_data
         ( process_manager->process_to_cleanup,
         ( void* )process->id

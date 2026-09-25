@@ -444,7 +444,7 @@ void syscall_rpc_ret( void* context ) {
       // in case there is no target, use source and treat it as async
       // use first possible process
       target = nullptr;
-      auto current = proc->free_thread_list->first;
+      auto current = proc->thread_list->first;
       // loop until usable thread has been found
       while ( current && ! target ) {
         // get thread

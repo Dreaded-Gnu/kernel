@@ -36,12 +36,10 @@ typedef struct task_stack_manager task_stack_manager_t;
 typedef struct task_process {
   /** avl node */
   avl_node_t node_id;
-  /** thread tree */
-  avl_tree_t* thread_manager;
   /** thread stack manager */
   task_stack_manager_t* thread_stack_manager;
   /** free thread list */
-  list_manager_t* free_thread_list;
+  list_manager_t* thread_list;
   /** process id */
   pid_t id;
   /** parent process id */

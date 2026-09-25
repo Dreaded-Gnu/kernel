@@ -35,8 +35,6 @@ typedef struct rpc_backup rpc_backup_t;
 typedef struct  task_thread {
   /** current context */
   void* current_context;
-  /** avl management node */
-  avl_node_t node_id;
   /** queue avl management node */
   avl_node_t queue_node;
   /** thread id */
@@ -77,16 +75,13 @@ extern const uint32_t task_thread_priority_weight[ 40 ];
 
 #define TASK_THREAD_NICE_LEVEL_0 1024
 
-#define TASK_THREAD_GET_BLOCK( n ) \
-  ( task_thread_t* )( ( uint8_t* )n - offsetof( task_thread_t, node_id ) )
-
 #define TASK_THREAD_GET_QUEUE_BLOCK( n ) \
   ( task_thread_t* )( ( uint8_t* )n - offsetof( task_thread_t, queue_node ) )
 
 bool task_thread_set_current( task_thread_t* );
 void task_thread_reset_current( void );
 pid_t task_thread_generate_id( void );
-avl_tree_t* task_thread_init( void );
+list_manager_t* task_thread_init( void );
 void task_thread_destroy( avl_tree_t* );
 task_thread_t* task_thread_create( uintptr_t, task_process_t*, size_t );
 task_thread_t* task_thread_fork( task_process_t*, const task_thread_t* );

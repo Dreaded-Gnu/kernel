@@ -141,17 +141,13 @@ static void task_process_free( task_process_t* proc ) {
   }
   // set to nullptr
   proc->virtual_context = nullptr;
-  // destroy thread manager
-  if ( proc->thread_manager ) {
-    task_thread_destroy( proc->thread_manager );
-  }
   // destroy stack manager
   if ( proc->thread_stack_manager ) {
     task_stack_manager_destroy( proc->thread_stack_manager );
   }
   // destroy free thread list
-  if ( proc->free_thread_list ) {
-    list_destruct( proc->free_thread_list );
+  if ( proc->thread_list ) {
+    list_destruct( proc->thread_list );
   }
   // destroy rpc stuff
   rpc_generic_destroy( proc );
@@ -358,15 +354,9 @@ task_process_t* task_process_create( const size_t priority, const pid_t parent )
   memset( ( void* )process, 0, sizeof( task_process_t ) );
   // populate process structure
   process->id = task_process_generate_id();
-  process->thread_manager = task_thread_init();
-  // handle error
-  if ( ! process->thread_manager ) {
-    task_process_free( process );
-    return nullptr;
-  }
   // setup free thread list
-  process->free_thread_list = list_construct( nullptr, nullptr, nullptr );
-  if ( ! process->free_thread_list ) {
+  process->thread_list = task_thread_init();
+  if ( ! process->thread_list ) {
     task_process_free( process );
     return nullptr;
   }
@@ -421,14 +411,9 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Initialize thread manager\r\n" )
   #endif
-  forked->thread_manager = task_thread_init();
-  if ( ! forked->thread_manager ) {
-    task_process_free( forked );
-    return nullptr;
-  }
   // setup free thread list
-  forked->free_thread_list = list_construct( nullptr, nullptr, nullptr );
-  if ( ! forked->free_thread_list ) {
+  forked->thread_list = task_thread_init();
+  if ( ! forked->thread_list ) {
     task_process_free( forked );
     return nullptr;
   }
@@ -497,23 +482,16 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "Looping through threads\r\n" )
   #endif
-  avl_node_t* current = avl_iterate_first( proc->thread_manager );
+  auto current = proc->thread_list->first;
   while ( current ) {
     // get thread
-    auto const thread = TASK_THREAD_GET_BLOCK( current );
+    auto const thread = ( task_thread_t* )current->data;
     // try to fork it
     if ( ! task_thread_fork( forked, thread ) ) {
       task_process_free( forked );
       return nullptr;
     }
-    // get next thread
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "current = %p\r\n", ( void* )current )
-    #endif
-    current = avl_iterate_next( proc->thread_manager, current );
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "current = %p\r\n", ( void* )current )
-    #endif
+    current = current->next;
   }
 
   return forked;
@@ -539,18 +517,18 @@ void task_process_cleanup(
     // get process from item
     auto const proc = ( task_process_t* )current->data;
     // check for running thread
-    avl_node_t* current_thread = avl_iterate_first( proc->thread_manager );
+    auto current_thread = proc->thread_list->first;
     bool skip = false;
     while ( current_thread ) {
       // get thread
-      auto const thread = TASK_THREAD_GET_BLOCK( current_thread );
+      auto const thread = ( task_thread_t* )current_thread->data;
       // check for active
       if ( thread->state != TASK_THREAD_STATE_KILL ) {
         skip = true;
         break;
       }
       // get next thread
-      current_thread = avl_iterate_next( proc->thread_manager, current_thread );
+      current_thread = current_thread->next;
     }
     // skip
     if ( skip ) {
@@ -663,11 +641,10 @@ bool task_process_prepare_init( task_process_t* proc ) {
   sprintf( str_ramdisk_size, "%#zx\0", ramdisk_file_size );
 
   // get thread
-  avl_node_t* node = avl_iterate_first( proc->thread_manager );
-  if ( ! node ) {
+  if ( ! proc->thread_list->first || ! proc->thread_list->first->data ) {
     return false;
   }
-  task_thread_t* thread = TASK_THREAD_GET_BLOCK( node );
+  auto const thread = ( task_thread_t* )proc->thread_list->first->data;
 
   // empty env for init
   char* env[] = { nullptr, };
@@ -717,15 +694,15 @@ void task_process_prepare_kill( task_process_t* proc ) {
     DEBUG_OUTPUT( "Prepare kill of process %d\r\n", proc->id )
   #endif
   // get first thread
-  avl_node_t* current = avl_iterate_first( proc->thread_manager );
+  auto current = proc->thread_list->first;
   // loop through all threads set appropriate state for kill
   while ( current ) {
     // get thread
-    task_thread_t* thread = TASK_THREAD_GET_BLOCK( current );
+    auto const thread = ( task_thread_t* )current->data;
     // set process state
     task_thread_set_state( thread, TASK_THREAD_STATE_KILL );
     // get next thread
-    current = avl_iterate_next( proc->thread_manager, current );
+    current = current->next;
   }
   // unregister possible interrupts
   interrupt_unregister_process( proc );
@@ -878,12 +855,12 @@ int task_process_replace(
   proc->rpc_mailbox = 0;
   proc->rpc_mailbox_virt = 0;
 
-  // destroy thread manager
-  if ( proc->thread_manager ) {
+  // destroy free thread list
+  if ( proc->thread_list ) {
     #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "thread manager = %p\r\n", proc->thread_manager )
+      DEBUG_OUTPUT( "thread_list = %p\r\n", proc->thread_list )
     #endif
-    task_thread_destroy( proc->thread_manager );
+    list_destruct( proc->thread_list );
   }
   // destroy stack manager
   if ( proc->thread_stack_manager ) {
@@ -892,23 +869,7 @@ int task_process_replace(
     #endif
     task_stack_manager_destroy( proc->thread_stack_manager );
   }
-  // destroy free thread list
-  if ( proc->free_thread_list ) {
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT( "free_thread_list = %p\r\n", proc->free_thread_list )
-    #endif
-    list_destruct( proc->free_thread_list );
-  }
 
-  // recreate thread manager and stack manager
-  proc->thread_manager = task_thread_init();
-  if ( ! proc->thread_manager ) {
-    free( tmp_argv );
-    free( tmp_env );
-    unmap_replace_random( image_size );
-    task_process_prepare_kill( proc );
-    return -ENOMEM;
-  }
   proc->thread_stack_manager = task_stack_manager_create();
   if ( ! proc->thread_stack_manager ) {
     free( tmp_argv );
@@ -918,8 +879,8 @@ int task_process_replace(
     return -ENOMEM;
   }
   // setup free thread list
-  proc->free_thread_list = list_construct( nullptr, nullptr, nullptr );
-  if ( ! proc->free_thread_list ) {
+  proc->thread_list = task_thread_init();
+  if ( ! proc->thread_list ) {
     free( tmp_argv );
     free( tmp_env );
     unmap_replace_random( image_size );

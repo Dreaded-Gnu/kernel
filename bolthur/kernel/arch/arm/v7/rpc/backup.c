@@ -60,16 +60,12 @@ rpc_backup_t* rpc_backup_create(
   const bool is_timer,
   const bool measure
 ) {
-  // get first inactive thread
-  #if defined( PRINT_RPC )
-    DEBUG_OUTPUT( "%d: target->thread_manager = %p\r\n", target->id, target->thread_manager )
-  #endif
   const uint64_t t_before_thread_look_up = timer_get_current_tick_value();
   // try to use target thread
   task_thread_t* thread = target_thread;
   // choose one from free thread list
   if ( ! thread ) {
-    auto current = target->free_thread_list->first;
+    auto current = target->thread_list->first;
     // loop until usable thread has been found
     while ( current && ! thread ) {
       // get thread

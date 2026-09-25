@@ -386,7 +386,7 @@ void interrupt_handle( const size_t num, const interrupt_type_t type, void* cont
 
   if ( block->external ) {
     // take first thread
-    task_thread_t* thread = list_peek_front_data( block->external->free_thread_list );
+    task_thread_t* thread = list_peek_front_data( block->external->thread_list );
     // debug output
     #if defined( PRINT_INTERRUPT )
       DEBUG_OUTPUT( "Raising interrupt handler %zu for %d\r\n",

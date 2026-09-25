@@ -219,20 +219,8 @@ task_thread_t* task_thread_create(
   thread->nice_level = nice_level;
   thread->vruntime = 0;
   thread->weight = task_thread_priority_weight[ thread->nice_level + 20 ];
-  // prepare node
-  avl_prepare_node( &thread->node_id, ( uint64_t )thread->id );
-  // add to tree
-  if ( ! avl_insert_by_node( process->thread_manager, &thread->node_id ) ) {
-    task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
-    virt_unmap_address( process->virtual_context, stack_virtual, true );
-    free( thread->current_context );
-    free( thread );
-    return nullptr;
-  }
-
   // push back into free list
-  if ( ! list_push_back_data( process->free_thread_list, thread ) ) {
-    avl_remove_by_node( process->thread_manager, &thread->node_id );
+  if ( ! list_push_back_data( process->thread_list, thread ) ) {
     task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
     virt_unmap_address( process->virtual_context, stack_virtual, true );
     free( thread->current_context );
@@ -319,25 +307,12 @@ task_thread_t* task_thread_fork(
     return nullptr;
   }
 
-  // prepare node
-  avl_prepare_node( &thread->node_id, ( uint64_t )thread->id );
-  // add to tree
-  if ( ! avl_insert_by_node( thread->process->thread_manager, &thread->node_id ) ) {
-    task_stack_manager_remove(
-      thread->stack_virtual,
-      thread->process->thread_stack_manager
-    );
-    free( thread->current_context );
-    free( thread );
-    return nullptr;
-  }
   // push back thread into free list
-  if ( ! list_push_back_data( thread->process->free_thread_list, thread ) ) {
+  if ( ! list_push_back_data( thread->process->thread_list, thread ) ) {
     task_stack_manager_remove(
       thread->stack_virtual,
       thread->process->thread_stack_manager
     );
-    avl_remove_by_node( thread->process->thread_manager, &thread->node_id );
     free( thread->current_context );
     free( thread );
     return nullptr;
