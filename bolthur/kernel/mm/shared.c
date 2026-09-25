@@ -33,6 +33,7 @@
  * @brief Tree of shared memory items
  */
 static avl_tree_t* shared_tree = nullptr;
+static list_manager_t* shared_list = nullptr;
 
 /**
  * @fn int32_t lookup_process(const list_item_t*, const void*)
@@ -228,6 +229,13 @@ bool shared_memory_init( void ) {
   if ( ! shared_tree ) {
     return false;
   }
+  // create list
+  shared_list = list_construct( nullptr, nullptr, nullptr );
+  if ( ! shared_list ) {
+    avl_destroy_tree( shared_tree );
+    shared_tree = nullptr;
+    return false;
+  }
   // return success
   return true;
 }
@@ -257,6 +265,12 @@ shared_memory_entry_t* shared_memory_create( size_t len ) {
   avl_prepare_node( &entry->node, entry->id );
   // add new item to tree
   if ( ! avl_insert_by_node( shared_tree, &entry->node ) ) {
+    destroy_entry( entry );
+    return nullptr;
+  }
+  // push back
+  if ( ! list_push_back_data( shared_list, entry ) ) {
+    avl_remove_by_node( shared_tree, &entry->node );
     destroy_entry( entry );
     return nullptr;
   }
@@ -582,6 +596,8 @@ bool shared_memory_detach( task_process_t* process, size_t id ) {
     #endif
     // remove node from tree
     avl_remove_by_node( shared_tree, &entry->node );
+    // remove from list
+    list_remove_data( shared_list, entry, true );
     // debug output
     #if defined( PRINT_MM_SHARED )
       DEBUG_OUTPUT( "Remove area from available tree\r\n" )
@@ -608,11 +624,11 @@ bool shared_memory_detach( task_process_t* process, size_t id ) {
  */
 bool shared_memory_phys_is_shared( task_process_t* process, const uint64_t start ) {
   // get start node
-  avl_node_t* node = avl_iterate_first( shared_tree );
+  auto current = shared_list->first;
   // loop until end
-  while ( node ) {
+  while ( current ) {
     // get mapped entry
-    auto const entry = SHARED_ENTRY_GET_BLOCK( node );
+    auto const entry = ( shared_memory_entry_t* )current->data;
     // lookup process
     const list_item_t* process_list_item = list_lookup_data(
       entry->process_mapping, process );
@@ -630,7 +646,7 @@ bool shared_memory_phys_is_shared( task_process_t* process, const uint64_t start
       }
     }
     // get next
-    node = avl_iterate_next( shared_tree, node );
+    current = current->next;
   }
   // return false
   return false;
@@ -651,11 +667,11 @@ bool shared_memory_address_is_shared(
   size_t len
 ) {
   // get start node
-  avl_node_t* node = avl_iterate_first( shared_tree );
+  auto current = shared_list->first;
   // loop until end
-  while ( node ) {
+  while ( current ) {
     // get mapped entry
-    const shared_memory_entry_t* entry = SHARED_ENTRY_GET_BLOCK( node );
+    const shared_memory_entry_t* entry = ( shared_memory_entry_t* )current->data;
     // lookup process
     const list_item_t* process_list_item = list_lookup_data(
       entry->process_mapping, process );
@@ -678,7 +694,7 @@ bool shared_memory_address_is_shared(
       }
     }
     // get next
-    node = avl_iterate_next( shared_tree, node );
+    current = current->next;
   }
   // return false
   return false;
@@ -697,11 +713,11 @@ bool shared_memory_fork(
   task_process_t* process_fork
 ) {
   // get start node
-  avl_node_t* node = avl_iterate_first( shared_tree );
+  auto current = shared_list->first;
   // loop until end
-  while ( node ) {
+  while ( current ) {
     // get mapped entry
-    auto const entry = SHARED_ENTRY_GET_BLOCK( node );
+    auto const entry = ( shared_memory_entry_t* )current->data;
     // lookup process
     const list_item_t* process_list_item = list_lookup_data(
       entry->process_mapping, process_to_fork );
@@ -728,7 +744,7 @@ bool shared_memory_fork(
       }
     }
     // get next
-    node = avl_iterate_next( shared_tree, node );
+    current = current->next;
   }
   // return success
   return true;
@@ -743,17 +759,17 @@ bool shared_memory_fork(
  */
 bool shared_memory_cleanup_process( task_process_t* proc ) {
   // get start node
-  avl_node_t* node = avl_iterate_first( shared_tree );
+  auto current = shared_list->first;
   // loop until end
-  while ( node ) {
+  while ( current ) {
     // get mapped entry
-    auto const entry = SHARED_ENTRY_GET_BLOCK( node );
+    auto const entry = ( shared_memory_entry_t* )current->data;
     // detach shared memory
     if ( ! shared_memory_detach( proc, entry->id ) ) {
       return false;
     }
     // get next
-    node = avl_iterate_next( shared_tree, node );
+    current = current->next;
   }
   // return success
   return true;
