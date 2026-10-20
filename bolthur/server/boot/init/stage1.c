@@ -31,8 +31,10 @@
 #include "../../../library/vfs/wait.h"
 
 pid_t vfs_pid = 2;
-pid_t dev_pid = 3;
-pid_t ramdisk_pid = 4;
+pid_t idle_pid = 3;
+pid_t dev_pid = 4;
+pid_t ramdisk_pid = 5;
+pid_t authentication_pid = 6;
 
 /**
  * @fn void init_stage1(void)
@@ -72,6 +74,46 @@ void init_stage1( void ) {
       EARLY_STARTUP_PRINT( "%s\r\n", strerror( errno ) )
     #endif
     exit( -1 );
+  }
+  // non fork only
+  if ( 0 != forked_process ) {
+    // get vfs image
+    size_t idle_size;
+    void* idle_image = ramdisk_lookup( disk, "ramdisk/bin/server/idle", &idle_size );
+    if ( ! idle_image ) {
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Idle not found!\r\n" )
+      #endif
+      exit( -1 );
+    }
+    #if defined( BOOT_ENABLE_OUTPUT )
+      EARLY_STARTUP_PRINT( "Idle image: %p!\r\n", idle_image )
+      // fork process and handle possible error
+      EARLY_STARTUP_PRINT( "Forking process for idle start!\r\n" )
+    #endif
+    pid_t forked_process_idle = _syscall_process_fork();
+    if ( errno ) {
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Unable to fork process\r\n" )
+        EARLY_STARTUP_PRINT( "%s\r\n", strerror( errno ) )
+      #endif
+      exit( -1 );
+    }
+    // fork only
+    if ( 0 == forked_process_idle ) {
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Replacing fork with idle image %p!\r\n", idle_image );
+      _syscall_process_replace( idle_image, nullptr, nullptr );
+      #endif
+      if ( errno ) {
+        #if defined( BOOT_ENABLE_OUTPUT )
+          const int e = errno;
+          EARLY_STARTUP_PRINT( "Unable to replace process with image\r\n" )
+          EARLY_STARTUP_PRINT( "%s\r\n", strerror( e ) )
+        #endif
+        exit( -1 );
+      }
+    }
   }
   // fork only
   if ( 0 == forked_process ) {
@@ -190,7 +232,7 @@ void init_stage1( void ) {
           EARLY_STARTUP_PRINT( "Replacing fork with authentication image %p!\r\n", authentication_image )
         #endif
         // build command
-        char* authentication_cmd[] = { "authentication", "1", "2", "3", "4", "5", nullptr, };
+        char* authentication_cmd[] = { "authentication", "1", "2", "3", "4", "5", "6", nullptr, };
         // call for replace and handle error
         _syscall_process_replace( authentication_image, authentication_cmd, nullptr );
         if ( errno ) {

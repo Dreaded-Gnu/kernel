@@ -22,15 +22,13 @@
 #include "../lib/string.h"
 #include "../syscall.h"
 #include "../task/process.h"
-#include "../task/stack.h"
+#include "../server.h"
 #include "../task/thread.h"
 #include "../elf.h"
 #include "../cache.h"
 #if defined( PRINT_SYSCALL )
   #include "../debug/debug.h"
 #endif
-
-#define VFS_DAEMON_ID 2
 
 /**
  * @fn void syscall_process_id(void*)
@@ -161,7 +159,7 @@ void syscall_process_fork( void* context ) {
     return;
   }
   // try to get vfs
-  const task_process_t* vfs = task_process_get_by_id( VFS_DAEMON_ID );
+  const task_process_t* vfs = task_process_get_by_id( SERVER_VFS_DAEMON_ID );
   if ( vfs && vfs != forked && vfs->rpc_ready ) {
     /// FIXME: SETUP VFS FORK RPC CALL
   }

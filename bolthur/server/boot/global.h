@@ -29,9 +29,10 @@ extern uint64_t ramdisk_shared_id;
 extern TAR *disk;
 extern int fd_dev_manager;
 
-extern pid_t own_pid;
 extern pid_t vfs_pid;
+extern pid_t idle_pid;
 extern pid_t dev_pid;
 extern pid_t ramdisk_pid;
+extern pid_t authentication_pid;
 
 #endif
