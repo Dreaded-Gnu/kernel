@@ -17,6 +17,8 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <sys/bolthur.h>
+
 /**
  * @brief Main entry point
  * @param argc
@@ -25,6 +27,6 @@
  */
 int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   while ( true ) {
-    __asm__ __volatile__ ( "wfi" );
+    _syscall_process_halt();
   }
 }

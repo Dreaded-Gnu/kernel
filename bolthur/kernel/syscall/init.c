@@ -39,6 +39,7 @@ bool syscall_init( void ) {
     || ! SYSCALL_BIND( SYSCALL_PROCESS_REPLACE, syscall_process_replace )
     || ! SYSCALL_BIND( SYSCALL_PROCESS_PARENT_BY_ID, syscall_process_parent_by_id )
     || ! SYSCALL_BIND( SYSCALL_PROCESS_EXIST, syscall_process_exist )
+    || ! SYSCALL_BIND( SYSCALL_PROCESS_HALT, syscall_process_halt )
   ) {
     return false;
   }

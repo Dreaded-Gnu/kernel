@@ -24,7 +24,6 @@
 #include "../../../../timer.h"
 #include "../../../../task/queue.h"
 #include "../../../../task/process.h"
-#include "../../../../cache.h"
 #if defined( PRINT_PROCESS )
   #include "../../../../debug/debug.h"
 #endif

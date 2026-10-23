@@ -27,6 +27,7 @@ libv7_la_SOURCES = \
   syscall/interrupt.c \
   syscall/memory.c \
   syscall/rpc.c \
+  syscall/task.c \
   syscall/timer.c \
   task/process.c \
   task/stack.c \

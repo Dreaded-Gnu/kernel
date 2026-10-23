@@ -160,9 +160,6 @@ AM_CONDITIONAL([IS64], [test $executable_format -eq 64])
 
 AC_CONFIG_FILES([
   Makefile
-  arch/Makefile
-  arch/arm/Makefile
-  arch/arm/idle/Makefile
   authentication/Makefile
   boot/Makefile
   console/Makefile
@@ -172,6 +169,7 @@ AC_CONFIG_FILES([
   fs/fat/Makefile
   fs/ramdisk/Makefile
   fs/vfs/Makefile
+  idle/Makefile
   mount/Makefile
   partition/Makefile
   platform/Makefile

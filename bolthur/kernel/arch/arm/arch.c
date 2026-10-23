@@ -36,7 +36,9 @@ __no_stack_protector
 void arch_halt( void ) {
   __asm__ __volatile__(
     "cpsie iaf\n"
+    "dsb\n"
     "wfi\n"
+    "isb\n"
     "cpsid iaf\n"
     ::: "cc", "memory" );
 }
