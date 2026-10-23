@@ -20,10 +20,10 @@
 #include "../../../../lib/string.h"
 #include "../../../../mm/phys.h"
 #include "../../../../mm/virt.h"
-#include "../../../../arch.h"
 #include "../../../../timer.h"
 #include "../../../../task/queue.h"
 #include "../../../../task/process.h"
+#include "../../../../lib/assert.h"
 #if defined( PRINT_PROCESS )
   #include "../../../../debug/debug.h"
 #endif
@@ -174,31 +174,8 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
       task_thread_reset_current();
       // get next thread after reset
       next_thread = task_queue_peek();
-      // debug output
-      #if defined( PRINT_PROCESS )
-        DEBUG_OUTPUT( "next_thread = %p\r\n", next_thread )
-      #endif
-      // handle no next thread
-      if ( ! next_thread ) {
-        #if defined( PRINT_PROCESS )
-          DEBUG_OUTPUT( "No further threads to schedule to, halting\r\n" )
-        #endif
-        // wait for exception
-        arch_halt();
-        // again check for try to switch to is set
-        if (
-          task_thread_try_switch_to
-          && (
-            TASK_THREAD_STATE_READY == task_thread_try_switch_to->state
-            || TASK_THREAD_STATE_RPC_QUEUED == task_thread_try_switch_to->state
-            || TASK_THREAD_STATE_HALT_SWITCH == task_thread_try_switch_to->state
-            || TASK_THREAD_STATE_RPC_HALT_SWITCH == task_thread_try_switch_to->state
-          )
-        ) {
-          next_thread = task_thread_try_switch_to;
-          task_thread_try_switch_to = nullptr;
-        }
-      }
+      // assert next thread since there is at least the idle thread
+      assert( next_thread );
     }
   }
   // debug output

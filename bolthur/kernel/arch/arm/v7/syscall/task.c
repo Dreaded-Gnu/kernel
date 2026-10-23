@@ -40,4 +40,6 @@ void syscall_process_halt( void* context ) {
   arch_halt();
   // return success
   syscall_populate_success( context, 0 );
+  // enqueue scheduler
+  event_enqueue( EVENT_PROCESS );
 }
