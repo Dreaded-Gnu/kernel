@@ -67,6 +67,7 @@ void init_stage1( void ) {
     // fork process and handle possible error
     EARLY_STARTUP_PRINT( "Forking process for vfs start!\r\n" )
   #endif
+  pid_t forked_process_idle;
   pid_t forked_process = _syscall_process_fork();
   if ( errno ) {
     #if defined( BOOT_ENABLE_OUTPUT )
@@ -77,21 +78,10 @@ void init_stage1( void ) {
   }
   // non fork only
   if ( 0 != forked_process ) {
-    // get vfs image
-    size_t idle_size;
-    void* idle_image = ramdisk_lookup( disk, "ramdisk/bin/server/idle", &idle_size );
-    if ( ! idle_image ) {
-      #if defined( BOOT_ENABLE_OUTPUT )
-        EARLY_STARTUP_PRINT( "Idle not found!\r\n" )
-      #endif
-      exit( -1 );
-    }
     #if defined( BOOT_ENABLE_OUTPUT )
-      EARLY_STARTUP_PRINT( "Idle image: %p!\r\n", idle_image )
-      // fork process and handle possible error
       EARLY_STARTUP_PRINT( "Forking process for idle start!\r\n" )
     #endif
-    pid_t forked_process_idle = _syscall_process_fork();
+    forked_process_idle = _syscall_process_fork();
     if ( errno ) {
       #if defined( BOOT_ENABLE_OUTPUT )
         EARLY_STARTUP_PRINT( "Unable to fork process\r\n" )
@@ -101,6 +91,19 @@ void init_stage1( void ) {
     }
     // fork only
     if ( 0 == forked_process_idle ) {
+      _syscall_rpc_set_ready( false );
+      // get idle image
+      size_t idle_size;
+      void* idle_image = ramdisk_lookup( disk, "ramdisk/bin/server/idle", &idle_size );
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Idle image: %p!\r\n", idle_image )
+      #endif
+      if ( ! idle_image ) {
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Idle not found!\r\n" )
+        #endif
+        exit( -1 );
+      }
       #if defined( BOOT_ENABLE_OUTPUT )
         EARLY_STARTUP_PRINT( "Replacing fork with idle image %p!\r\n", idle_image );
       _syscall_process_replace( idle_image, nullptr, nullptr );
@@ -113,10 +116,13 @@ void init_stage1( void ) {
         #endif
         exit( -1 );
       }
+    } else {
+      EARLY_STARTUP_PRINT( "pid = %d\r\n", forked_process_idle )
     }
   }
   // fork only
   if ( 0 == forked_process ) {
+    _syscall_rpc_wait_for_ready( idle_pid );
     // start /dev
     #if defined( BOOT_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "Starting for dev server...\r\n" )
@@ -274,9 +280,21 @@ void init_stage1( void ) {
     #endif
     exit( -1 );
   }
+  if ( idle_pid != forked_process_idle ) {
+    #if defined( BOOT_ENABLE_OUTPUT )
+      EARLY_STARTUP_PRINT( "Invalid process id for idle daemon!\r\n" )
+    #endif
+    exit( -1 );
+  }
   // enable rpc and wait for process to be ready
+  #if defined( BOOT_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "set rpc ready!\r\n" )
+  #endif
   _syscall_rpc_set_ready( true );
-  // wait for parent process to be ready
+  // wait for vfs to be ready
+  #if defined( BOOT_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "wait for vfs becomes ready!\r\n" )
+  #endif
   _syscall_rpc_wait_for_ready( VFS_DAEMON_ID );
   // wait for vfs to be ready
   #if defined( BOOT_ENABLE_OUTPUT )

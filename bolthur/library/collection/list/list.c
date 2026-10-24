@@ -113,20 +113,17 @@ list_manager_t* list_construct(
  * @param list list to use
  */
 void list_destruct( list_manager_t* list ) {
-  list_item_t* current;
-  list_item_t* next;
-
   // check parameter
   if ( !list ) {
     return;
   }
   // populate current
-  current = list->first;
+  list_item_t* current = list->first;
 
   // loop through list until end
   while ( current ) {
     // get next element
-    next = current->next;
+    list_item_t* next = current->next;
 
     // additional cleanup
     list->cleanup( current );
@@ -543,10 +540,19 @@ static bool list_remove_item_internal( list_manager_t* list, list_item_t* node )
     return false;
   }
   bool result = false;
-  if ( node == list->first ) {
-    result = list_remove_item_head( list );
-  } else if ( node == list->last ) {
-    result = list_remove_item_tail( list );
+  // handle first / last removal
+  if ( node == list->first || node == list->last ) {
+    // first equals last
+    if ( list->first == list->last ) {
+      list->first = list->last = nullptr;
+      result = true;
+    // first removal
+    } else if ( node == list->first ) {
+      result = list_remove_item_head( list );
+    // last removal
+    } else if ( node == list->last ) {
+      result = list_remove_item_tail( list );
+    }
   } else {
     node->previous->next = node->next;
     node->next->previous = node->previous;
@@ -597,7 +603,7 @@ bool list_remove_data( list_manager_t* list, void* data, const bool cleanup ) {
   }
   // stop if not existing
   list_item_t* item = list_lookup_data( list, data );
-  if ( !item ) {
+  if ( ! item ) {
     return false;
   }
   // remove item

@@ -216,6 +216,8 @@ void timer_handle_vruntime( const uint64_t ticks ) {
   }
   // increase vruntime
   task_thread_current_thread->vruntime += ticks * TASK_THREAD_NICE_LEVEL_0 / task_thread_current_thread->weight;
+  // update min vruntime
+  task_queue_update_min_vruntime( task_thread_current_thread );
   // get possible next thread
   auto const thread = task_queue_peek();
   if ( ! thread ) {
@@ -296,8 +298,6 @@ void timer_handle_callback( void ) {
     ) {
       // remove from wait queue
       task_queue_dequeue_blocked( entry->thread );
-      // add to scheduling
-      task_queue_enqueue( entry->thread );
     }
     // cache current and set to next
     list_item_t* to_remove = current;

@@ -325,14 +325,13 @@ pid_t task_process_generate_id( void ) {
 }
 
 /**
- * @fn task_process_t* task_process_create(size_t, pid_t)
+ * @fn task_process_t* task_process_create(pid_t)
  * @brief Method to create new process
  *
- * @param priority process priority
  * @param parent parent process id
  * @return
  */
-task_process_t* task_process_create( const size_t priority, const pid_t parent ) {
+task_process_t* task_process_create( const pid_t parent ) {
   // check manager
   if ( ! process_manager ) {
     return nullptr;
@@ -340,11 +339,7 @@ task_process_t* task_process_create( const size_t priority, const pid_t parent )
 
   // debug output
   #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT(
-      "task_process_create( %zu, %d ) called\r\n",
-      priority,
-      parent
-    )
+    DEBUG_OUTPUT( "task_process_create( %d ) called\r\n", parent )
   #endif
 
   // reserve space for process structure
@@ -369,7 +364,6 @@ task_process_t* task_process_create( const size_t priority, const pid_t parent )
     return nullptr;
   }
   // cache priority and parent
-  process->priority = priority;
   process->parent = parent;
   // create stack manager
   process->thread_stack_manager = task_stack_manager_create();
@@ -493,7 +487,6 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   // populate data normal data
   forked->id = task_process_generate_id();
   forked->parent = proc->id;
-  forked->priority = proc->priority;
 
   // prepare node
   avl_prepare_node( &forked->node_id, ( uint64_t )forked->id );
@@ -879,7 +872,7 @@ int task_process_replace(
   }
 
   // unset rpc stuff
-  proc->rpc_mailbox = 0;
+  proc->rpc_mailbox = nullptr;
   proc->rpc_mailbox_virt = 0;
 
   // destroy free thread list
@@ -895,6 +888,11 @@ int task_process_replace(
       DEBUG_OUTPUT( "stack manager = %p\r\n", proc->thread_stack_manager )
     #endif
     task_stack_manager_destroy( proc->thread_stack_manager );
+  }
+
+  // unset current thread in case we're replacing current thread
+  if ( replace_current_thread ) {
+    task_thread_current_thread = nullptr;
   }
 
   proc->thread_stack_manager = task_stack_manager_create();
@@ -961,16 +959,14 @@ int task_process_replace(
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "Replace current thread!\r\n" )
     #endif
+    // dequeue new current thread again
+    task_queue_dequeue_specific( new_current );
     // replace current thread pointer
-    task_thread_current_thread = new_current;
-    // switch thread state to active
-    task_thread_set_state( task_thread_current_thread, TASK_THREAD_STATE_ACTIVE );
+    task_thread_set_current( new_current );
     // set context again
     virt_set_context( task_thread_current_thread->process->virtual_context );
     // flush everything
     virt_flush_complete();
-    // remove from scheduling tree
-    task_queue_dequeue_specific( new_current );
   }
   return 0;
 }

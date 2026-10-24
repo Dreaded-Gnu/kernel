@@ -68,16 +68,18 @@ __attribute__((always_inline)) static inline void height_update( avl_node_t* nod
 }
 
 /**
- * @fn avl_node_t insert*(avl_tree_t*, avl_node_t*, avl_node_t*)
+ * @fn avl_node_t insert*(avl_tree_t*, avl_node_t*, avl_node_t*, bool*)
  * @brief Internal function for inserting a node
  * @param tree
  * @param node
  * @param root
+ * @param out
  * @return
  */
-static avl_node_t* insert( const avl_tree_t* tree, avl_node_t* node, avl_node_t* root ) {
+static avl_node_t* insert( const avl_tree_t* tree, avl_node_t* node, avl_node_t* root, bool* out ) {
   // handle empty root
   if ( ! root ) {
+    *out = true;
     return node;
   }
   // space for balancing path
@@ -107,6 +109,7 @@ static avl_node_t* insert( const avl_tree_t* tree, avl_node_t* node, avl_node_t*
       current = current->right;
     // handle equal
     } else {
+      *out = false;
       return root;
     }
   }
@@ -138,6 +141,7 @@ static avl_node_t* insert( const avl_tree_t* tree, avl_node_t* node, avl_node_t*
       break;
     }
   }
+  *out = true;
   // return root node
   return root;
 }
@@ -191,20 +195,23 @@ static avl_node_t* rotate_left( avl_node_t* node ) {
 }
 
 /**
- * @fn avl_node_t remove_by_node*(const avl_tree_t*, const avl_node_t*, avl_node_t*)
+ * @fn avl_node_t remove_by_node*(const avl_tree_t*, const avl_node_t*, avl_node_t*, bool*)
  * @brief Helper to remove by node
  * @param tree tree to work on
  * @param node node to remove
  * @param root current root
+ * @param out result of removal
  * @return avl_node_t* new root
  */
 static avl_node_t* remove_by_node(
   const avl_tree_t* tree,
   const avl_node_t* node,
-  avl_node_t* root
+  avl_node_t* root,
+  bool* out
 ) {
   // recursive breakpoint
   if ( ! root ) {
+    *out = false;
     return nullptr;
   }
   avl_node_t* path[ AVL_INSERT_REMOVE_MAX ];
@@ -224,6 +231,7 @@ static avl_node_t* remove_by_node(
   avl_node_t* node_to_delete = current;
   // handle not found
   if ( ! node_to_delete ) {
+    *out = false;
     return root;
   }
   // handle only one child
@@ -326,7 +334,7 @@ static avl_node_t* remove_by_node(
       }
     }
   }
-
+  *out = true;
   return root;
 }
 
@@ -510,8 +518,9 @@ bool avl_insert_by_node( avl_tree_t* tree, avl_node_t* node ) {
     return false;
   }
   // insert and balance
-  tree->root = insert( tree, node, tree->root );
-  return true;
+  bool result = false;
+  tree->root = insert( tree, node, tree->root, &result );
+  return result;
 }
 
 /**
@@ -642,6 +651,8 @@ void avl_print( const avl_tree_t* tree, const avl_print_func_t print ) {
  * @param tree tree to work on
  * @param node node to remove
  */
-void avl_remove_by_node( avl_tree_t* tree, avl_node_t* node ) {
-  tree->root = remove_by_node( tree, node, tree->root );
+bool avl_remove_by_node( avl_tree_t* tree, const avl_node_t* node ) {
+  bool result = false;
+  tree->root = remove_by_node( tree, node, tree->root, &result );
+  return result;
 }

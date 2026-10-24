@@ -44,5 +44,6 @@ void task_queue_enqueue_blocked( task_thread_t* );
 void task_queue_dequeue_blocked( task_thread_t* );
 list_item_t* task_queue_get_first_blocked( void );
 void task_queue_update_min_vruntime( task_thread_t* );
+uint64_t task_queue_min_vruntime( void );
 
 #endif

@@ -159,23 +159,25 @@ bool task_thread_set_current( task_thread_t* thread ) {
  * @brief Reset current thread
  */
 void task_thread_reset_current( void ) {
+  // cache thread
+  task_thread_t* thread = task_thread_current_thread;
+  // unset current thread
+  task_thread_current_thread = nullptr;
   // set state
-  if ( task_thread_current_thread ) {
-    if ( TASK_THREAD_STATE_HALT_SWITCH == task_thread_current_thread->state ) {
-      task_thread_set_state( task_thread_current_thread, TASK_THREAD_STATE_READY );
-    } else if ( TASK_THREAD_STATE_RPC_HALT_SWITCH == task_thread_current_thread->state ) {
-      task_thread_set_state( task_thread_current_thread, TASK_THREAD_STATE_RPC_QUEUED );
+  if ( thread ) {
+    if ( TASK_THREAD_STATE_HALT_SWITCH == thread->state ) {
+      task_thread_set_state( thread, TASK_THREAD_STATE_READY );
+    } else if ( TASK_THREAD_STATE_RPC_HALT_SWITCH == thread->state ) {
+      task_thread_set_state( thread, TASK_THREAD_STATE_RPC_QUEUED );
     }
     // push to tree if ready
     if (
-      TASK_THREAD_STATE_READY == task_thread_current_thread->state
-      || TASK_THREAD_STATE_RPC_QUEUED == task_thread_current_thread->state
+      TASK_THREAD_STATE_READY == thread->state
+      || TASK_THREAD_STATE_RPC_QUEUED == thread->state
     ) {
-      task_queue_enqueue( task_thread_current_thread );
+      task_queue_enqueue( thread );
     }
   }
-  // unset current thread
-  task_thread_current_thread = nullptr;
 }
 
 /**
@@ -413,15 +415,8 @@ void task_thread_unblock(
   #endif
   // set back to back up again
   task_thread_set_state( thread, thread->state_backup );
-  if (
-    TASK_THREAD_STATE_READY == thread->state
-    || TASK_THREAD_STATE_RPC_QUEUED == thread->state_backup
-  ) {
-    // remove from queue
-    task_queue_dequeue_blocked( thread );
-    // prepare node and add again to schedule tree
-    task_queue_enqueue( thread );
-  }
+  // remove from queue
+  task_queue_dequeue_blocked( thread );
   // debug output
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "%d: thread->state = %d\r\n", thread->process->id, thread->state )
@@ -471,5 +466,14 @@ void task_thread_set_state( task_thread_t* thread, const task_thread_state_t sta
       thread->process ? thread->process->id : 0, thread->state, state,
       returnAddress )
   #endif
+  // set state
   thread->state = state;
+  // queue in blocked
+  /// FIXME: FIND BETTER PLACE
+  if (
+    TASK_THREAD_STATE_RPC_WAIT_FOR_CALL == thread->state
+    || TASK_THREAD_STATE_RPC_WAIT_FOR_READY == thread->state
+  ) {
+    task_queue_enqueue_blocked( thread );
+  }
 }

@@ -392,7 +392,6 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
   }
   if ( TASK_THREAD_STATE_RPC_QUEUED == backup->thread->state ) {
     task_queue_dequeue_blocked( backup->thread );
-    task_queue_enqueue( backup->thread );
   }
   backup->prepared = true;
   backup->active = true;

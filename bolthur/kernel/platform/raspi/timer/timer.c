@@ -106,7 +106,7 @@ bool timer_missed_interrupt( void ) {
  *
  * @param context
  */
-static void timer_clear( void* context ) {
+static void timer_clear( [[maybe_unused]] void* context ) {
   timer_control( 3 );
   // debug output
   #if defined( PRINT_TIMER )
@@ -117,10 +117,8 @@ static void timer_clear( void* context ) {
   timer_control( 1 );
   // handle timers
   timer_handle_callback();
-  // handle vruntime update only when happening from user mode
-  if ( ! context ) {
-    timer_handle_vruntime( timer_get_interval() );
-  }
+  // handle vruntime update with pass of context
+  timer_handle_vruntime( timer_get_interval() );
 }
 
 /**

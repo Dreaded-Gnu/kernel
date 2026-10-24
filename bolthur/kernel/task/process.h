@@ -44,8 +44,6 @@ typedef struct task_process {
   pid_t id;
   /** parent process id */
   pid_t parent;
-  /** process priority */
-  size_t priority;
   /** virtual context */
   virt_context_t* virtual_context;
   /** rpc queue */
@@ -85,7 +83,7 @@ void task_process_schedule( event_origin_t, void* );
 void task_process_cleanup( event_origin_t, void* );
 void task_process_start( void );
 pid_t task_process_generate_id( void );
-task_process_t* task_process_create( size_t, pid_t );
+task_process_t* task_process_create( pid_t );
 task_process_t* task_process_fork( const task_thread_t* );
 bool task_process_prepare_init( task_process_t* );
 uintptr_t task_process_prepare_init_arch( const task_process_t* );

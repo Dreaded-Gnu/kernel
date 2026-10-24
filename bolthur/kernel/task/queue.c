@@ -18,9 +18,14 @@
  */
 
 #include "queue.h"
+#include "process.h"
 #include "thread.h"
+#include "../panic.h"
+#include "../server.h"
+#include "../debug/debug.h"
 #include "../lib/inttypes.h"
 #include "../lib/stdlib.h"
+#include "../lib/assert.h"
 #if defined( PRINT_PROCESS )
   #include "../debug/debug.h"
 #endif
@@ -53,6 +58,10 @@ static int32_t queue_compare_vruntime_callback(
   if ( thread_a->id > thread_b->id ) {
     return 1;
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "%d / %d / %d / %d\r\n",
+      thread_a->id, thread_b->id, thread_a->process->id, thread_b->process->id )
+  #endif
   // equal => return 0
   return 0;
 }
@@ -81,7 +90,7 @@ static int32_t queue_compare_vruntime_callback(
   }
   queue_manager->min_vruntime = 0;
   queue_manager->thread_count = 0;
-  return true;;
+  return true;
 }
 
 /**
@@ -117,7 +126,7 @@ task_thread_t* task_queue_dequeue( void ) {
     return nullptr;
   }
   // remove it
-  avl_remove_by_node( queue_manager->thread_scheduling_tree, node );
+  assert( avl_remove_by_node( queue_manager->thread_scheduling_tree, node ) );
   // increment count
   queue_manager->thread_count--;
   // return thread block
@@ -152,10 +161,19 @@ void task_queue_dequeue_specific( task_thread_t* thread ) {
   if ( ! queue_manager || ! queue_manager->thread_scheduling_tree || ! thread ) {
     return;
   }
-  // remove node
-  avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
-  // increment count
-  queue_manager->thread_count--;
+  // handle not current thread
+  if ( task_thread_current_thread != thread ) {
+    // remove node
+    const bool result = avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
+    #if defined( PRINT_PROCESS )
+      if ( ! result ) {
+        DEBUG_OUTPUT( "Removal of %d failed: %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
+      }
+    #endif
+    assert( result );
+    // decrement count
+    queue_manager->thread_count--;
+  }
 }
 
 /**
@@ -164,13 +182,17 @@ void task_queue_dequeue_specific( task_thread_t* thread ) {
  * @param thread
  */
 void task_queue_enqueue( task_thread_t* thread ) {
+  // validate
   if ( ! queue_manager || ! queue_manager->thread_scheduling_tree || ! thread ) {
     return;
   }
+  // assert not current thread
+  assert( task_thread_current_thread != thread );
   // prepare queue node
   avl_prepare_node( &thread->queue_node, thread->vruntime );
   // add to tree
-  avl_insert_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
+  const bool result = avl_insert_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
+  assert( result );
   // increment count
   queue_manager->thread_count++;
 }
@@ -185,9 +207,13 @@ void task_queue_enqueue_blocked( task_thread_t* thread ) {
     return;
   }
   // push to blocked
-  list_push_back_data( queue_manager->thread_wait_queue, thread );
+  if ( ! list_lookup_data( queue_manager->thread_wait_queue, thread ) ) {
+    assert( list_push_back_data( queue_manager->thread_wait_queue, thread ) );
+  }
   // remove from scheduling tree
-  avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
+  if ( task_thread_current_thread != thread ) {
+    assert( avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node ) );
+  }
 }
 
 /**
@@ -200,14 +226,35 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
     return;
   }
   // remove from blocked list
-  list_remove_data( queue_manager->thread_wait_queue, thread, true );
+  const bool was_blocked = list_remove_data( queue_manager->thread_wait_queue, thread, true );
+  #if defined( PRINT_PROCESS )
+    if ( ! was_blocked ) {
+      DEBUG_OUTPUT( "was_blocked failed from %p\r\n", ( void* )__builtin_return_address( 0 ) )
+    }
+  #endif
+  // assert blocked
+  assert( was_blocked );
   // adjust vruntime for fair scheduling
   if ( thread->vruntime < queue_manager->min_vruntime ) {
+    #if defined( PRINT_PROCESS )
+      DEBUG_OUTPUT( "vruntime = %lld\r\n", thread->vruntime )
+    #endif
     // inactivity bonus
     constexpr uint64_t bonus = 10000;
     // adjust vruntime
     thread->vruntime = queue_manager->min_vruntime > bonus ? queue_manager->min_vruntime - bonus : 0;
+    #if defined( PRINT_PROCESS )
+      DEBUG_OUTPUT( "vruntime = %lld\r\n", thread->vruntime )
+    #endif
+    // for debugging only
+    #if defined( PRINT_PROCESS )
+      const task_process_t* proc = task_process_get_by_id( SERVER_IDLE_DAEMON_ID );
+      const task_thread_t* t = proc->thread_list->first->data;
+      DEBUG_OUTPUT( "idle: %lld / %d\r\n", t->vruntime, t == task_thread_current_thread )
+    #endif
   }
+  // enqueue again
+  task_queue_enqueue( thread );
 }
 
 /**
@@ -255,4 +302,16 @@ void task_queue_update_min_vruntime( task_thread_t* current_thread ) {
   queue_manager->min_vruntime = queue_manager->min_vruntime > vruntime
     ? queue_manager->min_vruntime
     : vruntime;
+}
+
+/**
+ * @fn uint64_t task_queue_min_vruntime(void)
+ * @brief Function to get min vruntime
+ * @return
+ */
+uint64_t task_queue_min_vruntime( void ) {
+  if ( ! queue_manager || ! queue_manager->thread_wait_queue ) {
+    return 0;
+  }
+  return queue_manager->min_vruntime;
 }

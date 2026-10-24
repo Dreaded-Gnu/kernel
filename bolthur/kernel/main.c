@@ -33,6 +33,7 @@
 #include "mm/shared.h"
 #include "event.h"
 #include "task/process.h"
+#include "task/thread.h"
 #include "syscall.h"
 #include "cpu/pool.h"
 #if defined( REMOTE_DEBUG )
@@ -135,13 +136,13 @@ void kernel_main( void ) {
 
   // Create process
   DEBUG_OUTPUT( "[bolthur/kernel -> process -> init] create ...\r\n" )
-  task_process_t* proc = task_process_create( 0, 0 );
+  task_process_t* proc = task_process_create( 0 );
   assert( proc )
   // load flat image
   const uintptr_t init_entry = elf_load( elf_file, proc );
   assert( init_entry )
   // add thread
-  assert( task_thread_create( init_entry, proc, 0 ) )
+  assert( task_thread_create( init_entry, proc, TASK_THREAD_DEFAULT_NICE_LEVEL ) )
   // further init process preparation
   DEBUG_OUTPUT( "[bolthur/kernel -> process -> init] prepare ...\r\n" )
   assert( task_process_prepare_init( proc ) )

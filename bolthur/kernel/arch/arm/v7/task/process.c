@@ -51,6 +51,8 @@ void task_process_start( void ) {
     #endif
     return;
   }
+  // remove from tree
+  task_queue_dequeue_specific( next_thread );
   // set current running thread
   if ( ! task_thread_set_current( next_thread ) ) {
     // debug output
@@ -85,8 +87,6 @@ void task_process_start( void ) {
   #if defined( PRINT_PROCESS )
     DUMP_REGISTER( next_thread->current_context )
   #endif
-  // remove from tree
-  task_queue_dequeue_specific( next_thread );
   // jump to thread
   task_thread_switch_to( ( uintptr_t )next_thread->current_context );
 }
@@ -159,6 +159,8 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     task_thread_try_switch_to = nullptr;
   }
 
+  // update min vruntime by using running thread
+  task_queue_update_min_vruntime( running_thread );
   // loop while next thread is not set, or it's not ready
   while ( ! next_thread ) {
     // get next thread
@@ -170,7 +172,7 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     #endif
     // reset queue if nothing found
     if ( ! next_thread ) {
-      // reset
+      // reset current with enqueue
       task_thread_reset_current();
       // get next thread after reset
       next_thread = task_queue_peek();
@@ -197,27 +199,18 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
       task_thread_set_state( running_thread, TASK_THREAD_STATE_RPC_QUEUED );
     }
   }
-  // update min vruntime by using running thread
-  task_queue_update_min_vruntime( running_thread );
-  // handle running thread not next thread
-  if ( running_thread != next_thread ) {
-    // remove next thread
-    task_queue_dequeue_specific( next_thread );
-    // enqueue thread again if ready
-    if (
-      TASK_THREAD_STATE_READY == running_thread->state
-      || TASK_THREAD_STATE_RPC_QUEUED == running_thread->state
-    ) {
-      task_queue_enqueue( running_thread );
-    }
-  }
+  // remove next thread
+  task_queue_dequeue_specific( next_thread );
+  // reset current with enqueue
+  /// FIXME: CHECK IF NECESSARY
+  task_thread_reset_current();
   // debug output
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "running_thread = %d / %d, next_thread = %d / %d\r\n",
       running_thread->process->id, running_thread->state, next_thread->process->id, next_thread->state )
   #endif
   // overwrite current running thread
-  while( ! task_thread_set_current( next_thread ) ) {
+  while ( ! task_thread_set_current( next_thread ) ) {
     __asm__ __volatile__ ( "nop" ::: "cc" );
   }
 

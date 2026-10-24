@@ -73,7 +73,20 @@ extern task_thread_t* task_thread_current_thread;
 extern task_thread_t* task_thread_try_switch_to;
 extern const uint32_t task_thread_priority_weight[ 40 ];
 
+/**
+ * @brief Nice level 0 value
+ */
 #define TASK_THREAD_NICE_LEVEL_0 1024
+
+/**
+ * @brief Default thread nice level
+ */
+#define TASK_THREAD_DEFAULT_NICE_LEVEL 0
+
+/**
+ * @brief Max thread nice level
+ */
+#define TASK_THREAD_MAX_NICE_LEVEL 19
 
 #define TASK_THREAD_GET_QUEUE_BLOCK( n ) \
   ( task_thread_t* )( ( uint8_t* )n - offsetof( task_thread_t, queue_node ) )

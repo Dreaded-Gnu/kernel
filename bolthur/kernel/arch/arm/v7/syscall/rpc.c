@@ -240,10 +240,6 @@ void syscall_rpc_raise( void* context ) {
   }
   // switch it
   if ( task_thread_current_thread != rpc->thread && synchronous ) {
-    // enqueue scheduler
-    if ( ! task_thread_try_switch_to ) {
-      task_thread_try_switch_to = rpc->thread;
-    }
     // enqueue process event
     event_enqueue( EVENT_PROCESS );
   }

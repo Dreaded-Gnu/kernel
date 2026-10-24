@@ -29,7 +29,7 @@ typedef struct avl_tree avl_tree_t;
 
 // type declarations
 typedef int32_t ( *avl_compare_func_t )( const avl_node_t*, const avl_node_t* );
-typedef int32_t ( *avl_lookup_func_t )( const avl_node_t*, const uint64_t );
+typedef int32_t ( *avl_lookup_func_t )( const avl_node_t*, uint64_t );
 typedef void ( *avl_cleanup_func_t )( avl_node_t*  );
 typedef void ( *avl_print_func_t )( avl_node_t* );
 
@@ -55,7 +55,7 @@ void avl_prepare_node( avl_node_t*, uint64_t );
 avl_node_t* avl_find_by_data( const avl_tree_t*, uint64_t );
 
 bool avl_insert_by_node( avl_tree_t*, avl_node_t* );
-void avl_remove_by_node( avl_tree_t*, avl_node_t* );
+bool avl_remove_by_node( avl_tree_t*, const avl_node_t* );
 
 avl_tree_t* avl_create_tree( avl_compare_func_t, avl_lookup_func_t, avl_cleanup_func_t );
 avl_node_t* avl_create_node( uint64_t );
