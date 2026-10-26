@@ -199,7 +199,6 @@ rpc_backup_t* rpc_backup_create(
   #endif
   // save thread state and state data
   backup->thread_state = thread->state;
-  backup->thread_state_data.data_ptr = thread->state_data.data_ptr;
   backup->thread_state_data.data_size = thread->state_data.data_size;
   // in case thread state is rpc wait for call we need to go back to active
   // after rpc, because it may be a sleep that is active
@@ -209,9 +208,9 @@ rpc_backup_t* rpc_backup_create(
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT(
-      "backup->thread_state = %d, backup->thread_state_data.data_ptr = %p\r\n",
+      "backup->thread_state = %d, backup->thread_state_data.data_size = %llu\r\n",
       backup->thread_state,
-      backup->thread_state_data.data_ptr
+      backup->thread_state_data.data_size
     )
   #endif
   backup->prepared = false;

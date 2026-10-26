@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include "../../../../panic.h"
 #include "../../../../syscall.h"
 #include "../../../../rpc/generic.h"
 #include "../../../../rpc/data.h"
@@ -47,7 +48,7 @@ void syscall_rpc_raise( void* context ) {
   // debug output
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
-      "syscall_rpc_raise( %zu, %d, %p, %#zx, %zu, %d, %d, %d ) from %d\r\n",
+      "syscall_rpc_raise( %zu, %d, %p, %#zx, %"PRIu64", %d, %d, %d ) from %d\r\n",
       type,
       process,
       data,
@@ -212,7 +213,7 @@ void syscall_rpc_raise( void* context ) {
     // debug output
     #if defined( PRINT_SYSCALL )
       DEBUG_OUTPUT(
-        "blocking process with id %d ( %d / %zu )!\r\n",
+        "blocking process with id %d ( %d / %"PRIu64" )!\r\n",
         task_thread_current_thread->process->id,
         TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN,
         rpc->data_id
@@ -228,7 +229,7 @@ void syscall_rpc_raise( void* context ) {
   } else if ( ! synchronous ) {
     // debug output
     #if defined( PRINT_SYSCALL )
-      DEBUG_OUTPUT( "rpc->data_id = %zu\r\n", rpc->data_id )
+      DEBUG_OUTPUT( "rpc->data_id = %"PRIu64"\r\n", rpc->data_id )
     #endif
     // populate data id in backup in case it's in current thread and already active
     if ( rpc->thread == task_thread_current_thread && rpc->active ) {
@@ -259,7 +260,7 @@ void syscall_rpc_ret( void* context ) {
   const size_t length = syscall_get_parameter( context, 4 );
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
-      "syscall_rpc_ret( %zu, %p, %#zx, %zu ) from %d\r\n",
+      "syscall_rpc_ret( %zu, %p, %#zx, %"PRIu64" ) from %d\r\n",
       type,
       data,
       length,
@@ -290,7 +291,7 @@ void syscall_rpc_ret( void* context ) {
   if ( ! active ) {
     // debug output
     #if defined( PRINT_SYSCALL )
-      DEBUG_OUTPUT( "No activ rpc found for %zu!\r\n", original_rpc_id )
+      DEBUG_OUTPUT( "No activ rpc found for %"PRIu64"!\r\n", original_rpc_id )
     #endif
     syscall_populate_error( context, ( size_t )-EAGAIN );
     return;
@@ -320,7 +321,7 @@ void syscall_rpc_ret( void* context ) {
   uint64_t blocked_data_id = active->data_id;
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
-      "blocked_data_id = %zu, original_rpc_id = %zu\r\n",
+      "blocked_data_id = %"PRIu64", original_rpc_id = %"PRIu64"\r\n",
       blocked_data_id,
       original_rpc_id
     )
@@ -329,13 +330,15 @@ void syscall_rpc_ret( void* context ) {
   rpc_origin_source_t* info = rpc_generic_source_info(
     original_rpc_id ? original_rpc_id : active->data_id );
   #if defined( PRINT_SYSCALL )
-    DEBUG_OUTPUT( "active->sync = %d, info->sync = %d, rpc_id: %zu, source: %d, origin_rpc_id: %zu, type: %zu\r\n",
+    if ( info ) {
+      DEBUG_OUTPUT( "active->sync = %d, info->sync = %d, rpc_id: %"PRIu64", source: %d, origin_rpc_id: %"PRIu64", type: %zu\r\n",
         active->sync ? 1 : 0,
         info->sync ? 1 : 0,
         info->rpc_id,
         info->source_process,
         info->origin_rpc_id,
         info->type )
+    }
   #endif
   if ( ! active->sync || original_rpc_id ) {
     // overwrite blocked data id
@@ -350,7 +353,7 @@ void syscall_rpc_ret( void* context ) {
     if ( original_rpc_id && target && info && active->type != type ) {
       #if defined( PRINT_SYSCALL )
         DEBUG_OUTPUT(
-          "rpc_id: %zu, source: %d, sync: %d, origin_rpc_id: %zu, type: %zu\r\n",
+          "rpc_id: %"PRIu64", source: %d, sync: %d, origin_rpc_id: %"PRIu64", type: %zu\r\n",
           info->rpc_id,
           info->source_process,
           info->sync ? 1 : 0,
@@ -358,7 +361,7 @@ void syscall_rpc_ret( void* context ) {
           info->type
         )
         DEBUG_OUTPUT(
-          "sync = %d, data_id: %zu, original_data_id: %zu, type: %zu / %zu\r\n",
+          "sync = %d, data_id: %"PRIu64", original_data_id: %"PRIu64", type: %zu / %zu\r\n",
           active->sync ? 1 : 0,
           active->data_id,
           active->origin_data_id,
@@ -374,7 +377,7 @@ void syscall_rpc_ret( void* context ) {
       if ( ! info ) {
         #if defined( PRINT_SYSCALL )
           DEBUG_OUTPUT(
-            "No blocked thread found with %d / %zu\r\n",
+            "No blocked thread found with %d / %"PRIu64"\r\n",
             TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN,
             original_rpc_id
           )
@@ -386,7 +389,7 @@ void syscall_rpc_ret( void* context ) {
       }
       #if defined( PRINT_SYSCALL )
         DEBUG_OUTPUT(
-          "rpc_id: %zu, source: %d, sync: %d, origin_rpc_id: %zu, type: %zu\r\n",
+          "rpc_id: %"PRIu64", source: %d, sync: %d, origin_rpc_id: %"PRIu64", type: %zu\r\n",
           info->rpc_id,
           info->source_process,
           info->sync ? 1 : 0,
@@ -446,7 +449,7 @@ void syscall_rpc_ret( void* context ) {
   }
   #if defined( PRINT_SYSCALL )
     DEBUG_OUTPUT(
-      "blocked_data_id = %zu, original_rpc_id = %zu\r\n",
+      "blocked_data_id = %"PRIu64", original_rpc_id = %"PRIu64"\r\n",
       blocked_data_id,
       original_rpc_id
     )
@@ -468,7 +471,7 @@ void syscall_rpc_ret( void* context ) {
     );
     if ( err ) {
       #if defined( PRINT_SYSCALL )
-        DEBUG_OUTPUT( "Unable to push return to source data queue\r\n" )
+        DEBUG_OUTPUT( "Unable to push return to source data queue: %d\r\n", err )
       #endif
       // free duplicate
       free( dup_data );
@@ -478,11 +481,11 @@ void syscall_rpc_ret( void* context ) {
       return;
     }
     #if defined( PRINT_SYSCALL )
-      DEBUG_OUTPUT( "data_id = %zu\r\n", data_id )
+      DEBUG_OUTPUT( "data_id = %"PRIu64"\r\n", data_id )
       DEBUG_OUTPUT(
-        "target->state = %d, target->state_data = %p\r\n",
+        "target->state = %d, target->state_data->data_size = %"PRIu64"\r\n",
         target->state,
-        target->state_data.data_ptr
+        target->state_data.data_size
       )
       DEBUG_OUTPUT( "Using target: %d, using active: %d\r\n",
         target != task_thread_current_thread ? 1 : 0,
@@ -512,7 +515,7 @@ void syscall_rpc_ret( void* context ) {
       );
       #if defined( PRINT_SYSCALL )
         DEBUG_OUTPUT(
-          "unblock threads of process %d and blocked data %zu\r\n",
+          "unblock threads of process %d and blocked data %"PRIu64"\r\n",
           target->process->id,
           blocked_data_id
         )
@@ -552,7 +555,7 @@ void syscall_rpc_ret( void* context ) {
     );
     #if defined( PRINT_SYSCALL )
       DEBUG_OUTPUT(
-        "active->data_id = %zu, backup->data_id = %zu, type = %zu\r\n",
+        "active->data_id = %"PRIu64", backup->data_id = %"PRIu64", type = %zu\r\n",
         active->data_id,
         backup->data_id,
         type

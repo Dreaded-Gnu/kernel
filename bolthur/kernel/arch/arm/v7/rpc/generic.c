@@ -61,9 +61,9 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT(
-      "backup->thread_state = %d, backup->thread_state_data.data_ptr = %p\r\n",
+      "backup->thread_state = %d, backup->thread_state_data.data_size = %llu\r\n",
       backup->thread_state,
-      backup->thread_state_data.data_ptr
+      backup->thread_state_data.data_size
     )
     DUMP_REGISTER( thread->current_context )
     DEBUG_OUTPUT( "process id = %d\r\n", thread->process->id )
@@ -84,10 +84,14 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   // set correct state
   task_thread_set_state( thread, backup->thread_state );
   // restore thread state data
-  thread->state_data.data_ptr = backup->thread_state_data.data_ptr;
   thread->state_data.data_size = backup->thread_state_data.data_size;
   // reset active rpc
   thread->current_active_backup = nullptr;
+
+  // enqueue to blocked if not active or rpc is queued ( nested )
+  if ( ! task_thread_is_active( thread ) ) {
+    task_queue_enqueue_blocked( thread );
+  }
 
   // handle sync return on end
   if ( backup->sync_return_on_end ) {
@@ -111,9 +115,9 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   // debug output
   #if defined( PRINT_RPC )
     DEBUG_OUTPUT(
-      "backup->thread_state = %d, backup->thread_state_data.data_ptr = %p\r\n",
+      "backup->thread_state = %d, backup->thread_state_data.data_size = %llu\r\n",
       backup->thread_state,
-      backup->thread_state_data.data_ptr
+      backup->thread_state_data.data_size
     )
   #endif
   // finally remove found entry
@@ -159,7 +163,6 @@ bool rpc_generic_restore( task_thread_t* thread ) {
       // set thread state
       next->thread_state = thread->state;
       // copy over thread state data
-      next->thread_state_data.data_ptr = thread->state_data.data_ptr;
       next->thread_state_data.data_size = thread->state_data.data_size;
     }
     // debug output
@@ -235,7 +238,6 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
     (
       TASK_THREAD_STATE_RPC_QUEUED == backup->thread->state
       || TASK_THREAD_STATE_RPC_ACTIVE == backup->thread->state
-      || TASK_THREAD_STATE_RPC_HALT_SWITCH == backup->thread->state
       || wait_for_return_block
     ) && ! backup->is_interrupt
   ) {
@@ -244,6 +246,19 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
       DEBUG_OUTPUT( "%d is blocked\r\n", backup->thread->process->id )
       DEBUG_OUTPUT( "backup->thread->state = %d, pid = %d\r\n", backup->thread->state,
         backup->thread->process->id )
+      DEBUG_OUTPUT( "%llu / %llu ( %d / %d - %d / %d ) / %d\r\n",
+        task_thread_current_thread->vruntime, backup->thread->vruntime,
+        task_thread_current_thread->process->id, backup->thread->process->id,
+        task_thread_current_thread->id, backup->thread->id,
+        task_thread_current_thread == backup->thread )
+      auto const t = task_queue_peek();
+      if ( t ) {
+        DEBUG_OUTPUT( "%llu / %llu ( %d / %d - %d / %d ) / %d\r\n",
+          t->vruntime, backup->thread->vruntime,
+          t->process->id, backup->thread->process->id,
+          t->id, backup->thread->id,
+          t == backup->thread )
+      }
     #endif
     // return success
     return true;
@@ -265,6 +280,10 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
     // return success
     return true;
   }
+
+  // unblock flag
+  const bool unblock_thread = TASK_THREAD_STATE_RPC_WAIT_FOR_CALL == backup->thread->state
+    || TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN == backup->thread->state;
 
   // handle nested interrupts
   if ( backup->thread->current_active_backup ) {
@@ -296,14 +315,13 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
     active->active = false;
     // manipulate states and stuff of backup
     backup->thread_state = backup->thread->state;
-    if ( TASK_THREAD_STATE_RPC_HALT_SWITCH == backup->thread_state ) {
+    if ( TASK_THREAD_STATE_RPC_ACTIVE == backup->thread_state ) {
       backup->thread_state = TASK_THREAD_STATE_RPC_QUEUED;
     }
     backup->state_to_use = backup->thread->state;
     if ( backup->thread_state == TASK_THREAD_STATE_RPC_WAIT_FOR_RETURN ) {
       backup->state_to_use = TASK_THREAD_STATE_RPC_QUEUED;
     }
-    backup->thread_state_data.data_ptr = backup->thread->state_data.data_ptr;
     backup->thread_state_data.data_size = backup->thread->state_data.data_size;
     memcpy( backup->context, backup->thread->current_context, sizeof( cpu_register_context_t ) );
     backup->squeezed_in = true;
@@ -390,9 +408,15 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
   } else {
     task_thread_set_state( backup->thread, backup->state_to_use );
   }
-  if ( TASK_THREAD_STATE_RPC_QUEUED == backup->thread->state ) {
+  // unblock if necessary
+  if ( unblock_thread ) {
     task_queue_dequeue_blocked( backup->thread );
   }
+  // debug output
+  #if defined( PRINT_RPC )
+    DEBUG_OUTPUT( "RPC FOR %d with unblock %d / %"PRIu64"\r\n",
+      backup->thread->process->id, unblock_thread, backup->thread->vruntime )
+  #endif
   backup->prepared = true;
   backup->active = true;
   backup->thread->handling_interrupt = backup->is_interrupt;

@@ -85,7 +85,7 @@ void syscall_rpc_wait_for_call( void* context ) {
     syscall_populate_error( context, ( size_t )-EAGAIN );
     return;
   }
-  // set state
+  // block thread
   task_thread_set_state( task_thread_current_thread, TASK_THREAD_STATE_RPC_WAIT_FOR_CALL );
   // insert in wait queue
   task_queue_enqueue_blocked( task_thread_current_thread );

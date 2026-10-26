@@ -159,8 +159,8 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
     task_thread_try_switch_to = nullptr;
   }
 
-  // update min vruntime by using running thread
-  task_queue_update_min_vruntime( running_thread );
+  // update vruntime
+  timer_increase_vruntime( running_thread, timer_get_elapsed_since_last_interrupt() );
   // loop while next thread is not set, or it's not ready
   while ( ! next_thread ) {
     // get next thread
@@ -176,6 +176,10 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
       task_thread_reset_current();
       // get next thread after reset
       next_thread = task_queue_peek();
+      #if defined( PRINT_PROCESS )
+        DEBUG_OUTPUT( "current_thread = %p\r\n", running_thread )
+        DEBUG_OUTPUT( "next_thread = %p\r\n", next_thread )
+      #endif
       // assert next thread since there is at least the idle thread
       assert( next_thread );
     }
@@ -206,8 +210,11 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
   task_thread_reset_current();
   // debug output
   #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "running_thread = %d / %d, next_thread = %d / %d\r\n",
-      running_thread->process->id, running_thread->state, next_thread->process->id, next_thread->state )
+    if ( running_thread != next_thread ) {
+      DEBUG_OUTPUT( "running_thread = %d / %d ( %"PRIu64" ), next_thread = %d / %d ( %"PRIu64" )\r\n",
+        running_thread->process->id, running_thread->state, running_thread->vruntime,
+        next_thread->process->id, next_thread->state, next_thread->vruntime )
+    }
   #endif
   // overwrite current running thread
   while ( ! task_thread_set_current( next_thread ) ) {

@@ -28,13 +28,16 @@
 
 /**
  * @brief void syscall_process_halt( void* )
- * @brief Process halt syscall
+ * @brief Process halt syscall only allowed for idle daemon
  * @param context
  */
 void syscall_process_halt( void* context ) {
   // only idle daemon is allowed to halt
-  if ( task_thread_current_thread->process->id != SERVER_IDLE_DAEMON_ID ) {
+  if ( SERVER_IDLE_DAEMON_ID != task_thread_current_thread->process->id ) {
+    // only allowed for idle, so return einval
     syscall_populate_error( context, EINVAL );
+    // skip rest
+    return;
   }
   // call arch idle
   arch_halt();

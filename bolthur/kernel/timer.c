@@ -211,23 +211,43 @@ bool timer_unregister_callback( const uint64_t id ) {
  * @param ticks passed ticks
  */
 void timer_handle_vruntime( const uint64_t ticks ) {
-  if ( ! task_thread_current_thread ) {
-    return;
-  }
-  // increase vruntime
-  task_thread_current_thread->vruntime += ticks * TASK_THREAD_NICE_LEVEL_0 / task_thread_current_thread->weight;
-  // update min vruntime
-  task_queue_update_min_vruntime( task_thread_current_thread );
   // get possible next thread
   auto const thread = task_queue_peek();
-  if ( ! thread ) {
+  // handle no thread
+  if ( ! thread || ! task_thread_current_thread ) {
+    // increase vruntime
+    timer_increase_vruntime( task_thread_current_thread, ticks );
+    // skip rest
     return;
   }
+  // assert not current thread
   assert( thread != task_thread_current_thread );
+  // handle vruntime smaller than current one
   if ( thread->vruntime < task_thread_current_thread->vruntime ) {
     // schedule process
     event_enqueue( EVENT_PROCESS );
+    // skip rest
+    return;
   }
+  // increase vruntime
+  timer_increase_vruntime( task_thread_current_thread, ticks );
+}
+
+/**
+ * @fn void timer_increase_vruntime( task_thread_t*, uint64_t )
+ * @brief Helper to increase vruntime
+ * @param thread thread to update vruntime of
+ * @param ticks passed ticks
+ */
+void timer_increase_vruntime( task_thread_t* thread, const uint64_t ticks ) {
+  // handle no valid thread
+  if ( ! thread ) {
+    return;
+  }
+  // increase vruntime
+  thread->vruntime += ticks * TASK_THREAD_NICE_LEVEL_0 / thread->weight;
+  // update min vruntime
+  task_queue_update_min_vruntime( thread );
 }
 
 /**

@@ -351,6 +351,8 @@ void task_thread_block(
   #if defined( PRINT_PROCESS )
     DEBUG_OUTPUT( "thread->state_backup = %d\r\n", thread->state_backup )
     DEBUG_OUTPUT( "thread->state = %d\r\n", thread->state )
+    DEBUG_OUTPUT( "%d: thread->state = %d ( %llu )\r\n",
+      thread->process->id, thread->state, thread->state_data.data_size )
   #endif
 }
 
@@ -385,18 +387,6 @@ void task_thread_unblock(
     #endif
     return;
   }
-  // validate data
-  if ( thread->state_data.data_ptr != necessary_data.data_ptr ) {
-    // debug output
-    #if defined( PRINT_PROCESS )
-      DEBUG_OUTPUT(
-        "invalid data ptr attribute %p / %p\r\n",
-        thread->state_data.data_ptr,
-        necessary_data.data_ptr
-      )
-    #endif
-    return;
-  }
   // validate data size
   if ( thread->state_data.data_size != necessary_data.data_size ) {
     // debug output
@@ -411,7 +401,9 @@ void task_thread_unblock(
   }
   // debug output
   #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "%d: thread->state = %d\r\n", thread->process->id, thread->state )
+    DEBUG_OUTPUT( "%d: thread->state = %d ( %llu - %llu )\r\n",
+      thread->process->id, thread->state,
+      thread->state_data.data_size, necessary_data.data_size )
   #endif
   // set back to back up again
   task_thread_set_state( thread, thread->state_backup );
@@ -419,7 +411,9 @@ void task_thread_unblock(
   task_queue_dequeue_blocked( thread );
   // debug output
   #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "%d: thread->state = %d\r\n", thread->process->id, thread->state )
+    DEBUG_OUTPUT( "%d: thread->state = %d ( %llu - %llu )\r\n",
+      thread->process->id, thread->state,
+      thread->state_data.data_size, necessary_data.data_size )
   #endif
 }
 
@@ -440,7 +434,6 @@ task_thread_t* task_thread_get_blocked(
     auto const thread = ( task_thread_t* )current->data;
     if (
       thread->state == necessary_thread_state
-      && thread->state_data.data_ptr == necessary_thread_data.data_ptr
       && thread->state_data.data_size == necessary_thread_data.data_size
     ) {
       return thread;
@@ -468,12 +461,4 @@ void task_thread_set_state( task_thread_t* thread, const task_thread_state_t sta
   #endif
   // set state
   thread->state = state;
-  // queue in blocked
-  /// FIXME: FIND BETTER PLACE
-  if (
-    TASK_THREAD_STATE_RPC_WAIT_FOR_CALL == thread->state
-    || TASK_THREAD_STATE_RPC_WAIT_FOR_READY == thread->state
-  ) {
-    task_queue_enqueue_blocked( thread );
-  }
 }

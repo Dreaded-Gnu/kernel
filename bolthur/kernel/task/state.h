@@ -36,7 +36,6 @@ typedef enum {
 
 typedef union task_state_data {
   uint64_t data_size;
-  void* data_ptr;
 } task_state_data_t;
 
 #endif

@@ -20,11 +20,7 @@
 #include <errno.h>
 #include "../lib/inttypes.h"
 #include "../lib/string.h"
-#include "../lib/stdlib.h"
 #include "data.h"
-
-#include "../panic.h"
-#include "../mm/phys.h"
 #include "../mm/virt.h"
 #if defined( PRINT_RPC )
   #include "../debug/debug.h"
@@ -107,7 +103,7 @@ int rpc_data_queue_add(
     message_id = *rpc_data_queue_id;
   }
   // handle no mailbox
-  if ( !target_process->rpc_mailbox ) {
+  if ( ! target_process->rpc_mailbox ) {
     // debug output
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "No message queue allocated!\r\n" )

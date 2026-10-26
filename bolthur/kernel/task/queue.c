@@ -47,22 +47,17 @@ static int32_t queue_compare_vruntime_callback(
   auto const thread_a = TASK_THREAD_GET_QUEUE_BLOCK( a );
   auto const thread_b = TASK_THREAD_GET_QUEUE_BLOCK( b );
   if ( thread_a->vruntime < thread_b->vruntime ) {
-    return -1;
+    return 1;
   }
   if ( thread_a->vruntime > thread_b->vruntime ) {
-    return 1;
-  }
-  if ( thread_a->id < thread_b->id ) {
     return -1;
   }
-  if ( thread_a->id > thread_b->id ) {
+  if ( thread_a->id < thread_b->id ) {
     return 1;
   }
-  #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "%d / %d / %d / %d\r\n",
-      thread_a->id, thread_b->id, thread_a->process->id, thread_b->process->id )
-  #endif
-  // equal => return 0
+  if ( thread_a->id > thread_b->id ) {
+    return -1;
+  }
   return 0;
 }
 
@@ -206,6 +201,9 @@ void task_queue_enqueue_blocked( task_thread_t* thread ) {
   if ( ! queue_manager || ! queue_manager->thread_wait_queue || ! thread ) {
     return;
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "Blocking %d from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
+  #endif
   // push to blocked
   if ( ! list_lookup_data( queue_manager->thread_wait_queue, thread ) ) {
     assert( list_push_back_data( queue_manager->thread_wait_queue, thread ) );
@@ -225,6 +223,9 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
   if ( ! queue_manager || ! queue_manager->thread_wait_queue || ! thread ) {
     return;
   }
+  #if defined( PRINT_PROCESS )
+    DEBUG_OUTPUT( "Unblocking %d from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
+  #endif
   // remove from blocked list
   const bool was_blocked = list_remove_data( queue_manager->thread_wait_queue, thread, true );
   #if defined( PRINT_PROCESS )
@@ -239,8 +240,8 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "vruntime = %lld\r\n", thread->vruntime )
     #endif
-    // inactivity bonus
-    constexpr uint64_t bonus = 10000;
+    // inactivity bonus => 1 timer interval
+    const uint64_t bonus = timer_get_interval() * TASK_THREAD_NICE_LEVEL_0 / thread->weight;
     // adjust vruntime
     thread->vruntime = queue_manager->min_vruntime > bonus ? queue_manager->min_vruntime - bonus : 0;
     #if defined( PRINT_PROCESS )
@@ -248,9 +249,10 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
     #endif
     // for debugging only
     #if defined( PRINT_PROCESS )
-      const task_process_t* proc = task_process_get_by_id( SERVER_IDLE_DAEMON_ID );
-      const task_thread_t* t = proc->thread_list->first->data;
-      DEBUG_OUTPUT( "idle: %lld / %d\r\n", t->vruntime, t == task_thread_current_thread )
+      const task_thread_t* t = task_queue_peek();
+      if ( t ) {
+        DEBUG_OUTPUT( "peek->vruntime: %lld\r\n", t->vruntime )
+      }
     #endif
   }
   // enqueue again

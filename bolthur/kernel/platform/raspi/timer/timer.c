@@ -28,6 +28,8 @@
   #include "../../debug/debug.h"
 #endif
 
+static uint64_t previous_timer_tick = 0;
+
 /**
  * @fn void timer_init_clock(void)
  * @brief Setup timer clock
@@ -118,7 +120,9 @@ static void timer_clear( [[maybe_unused]] void* context ) {
   // handle timers
   timer_handle_callback();
   // handle vruntime update with pass of context
-  timer_handle_vruntime( timer_get_interval() );
+  timer_handle_vruntime( timer_get_elapsed_since_last_interrupt() );
+  // update previous timer
+  previous_timer_tick = timer_get_current_tick_value();
 }
 
 /**
@@ -145,6 +149,8 @@ void timer_platform_init( void ) {
   timer_routing();
   // kick start the timer
   timer_control( 1 );
+  // update previous timer
+  previous_timer_tick = timer_get_current_tick_value();
 }
 
 /**
@@ -171,4 +177,12 @@ uint32_t timer_get_frequency( void ) {
  */
 uint32_t timer_get_interval( void ) {
   return timer_get_frequency() / TIMER_INTERRUPT_FREQUENCY;
+}
+
+/**
+ * @brief Get elapsed ticks since last interrupt
+ * @return
+ */
+uint64_t timer_get_elapsed_since_last_interrupt( void ) {
+  return timer_get_current_tick_value() - previous_timer_tick;
 }

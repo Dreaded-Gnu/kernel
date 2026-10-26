@@ -29,7 +29,6 @@
 #include "../timer.h"
 
 typedef struct task_process task_process_t;
-
 typedef struct rpc_backup rpc_backup_t;
 
 typedef struct  task_thread {
