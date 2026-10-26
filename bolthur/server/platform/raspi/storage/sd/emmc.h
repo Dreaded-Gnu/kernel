@@ -71,7 +71,7 @@ typedef struct {
 
   // buffer, file descriptor and init flag
   uint32_t* buffer;
-  size_t shm_id;
+  uint64_t shm_id;
   int fd_iomem;
   bool initialized;
 
@@ -100,7 +100,7 @@ typedef struct {
 
 emmc_response_t emmc_init( void );
 const char* emmc_error( emmc_response_t );
-emmc_response_t emmc_transfer_block( uint32_t*, size_t, uint32_t, emmc_operation_t, size_t );
+emmc_response_t emmc_transfer_block( uint32_t*, size_t, uint32_t, emmc_operation_t, uint64_t );
 uint32_t emmc_device_block_size( void );
 
 #endif

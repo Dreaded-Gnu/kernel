@@ -115,8 +115,8 @@ void ramdisk_copy_from_shared( char* id ) {
   #if defined( RAMDISK_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Extract shared memory id containing tar\r\n" )
   #endif
-  size_t shm_id;
-  if ( 1 != sscanf( id, "%zu", &shm_id ) ) {
+  uint64_t shm_id;
+  if ( 1 != sscanf( id, "%llu", &shm_id ) ) {
     #if defined( RAMDISK_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "Unable to extract shared memory id!\r\n" )
     #endif

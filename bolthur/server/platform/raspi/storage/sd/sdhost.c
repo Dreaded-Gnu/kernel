@@ -1892,7 +1892,7 @@ const char* sdhost_error( sdhost_response_t num ) {
 }
 
 /**
- * @fn sdhost_response_t sdhost_transfer_block(uint32_t*, size_t, uint32_t, sdhost_operation_t, size_t)
+ * @fn sdhost_response_t sdhost_transfer_block(uint32_t*, size_t, uint32_t, sdhost_operation_t, uint64_t)
  * @brief Transfer block from / to sd card
  * @param buffer
  * @param buffer_size
@@ -1906,7 +1906,7 @@ sdhost_response_t sdhost_transfer_block(
   const size_t buffer_size,
   uint32_t block_number,
   const sdhost_operation_t operation,
-  const size_t shm_id
+  const uint64_t shm_id
 ) {
   sdhost_response_t response;
   // debug output

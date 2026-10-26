@@ -84,7 +84,7 @@ typedef struct {
 
   // buffer, file descriptor and initialized flag
   uint32_t* buffer;
-  size_t shm_id;
+  uint64_t shm_id;
   int fd_iomem;
   bool initialized;
 } sdhost_device_t;
@@ -95,7 +95,7 @@ typedef struct  {
 
 sdhost_response_t sdhost_init( void );
 const char* sdhost_error( sdhost_response_t );
-sdhost_response_t sdhost_transfer_block( uint32_t*, size_t, uint32_t, sdhost_operation_t, size_t );
+sdhost_response_t sdhost_transfer_block( uint32_t*, size_t, uint32_t, sdhost_operation_t, uint64_t );
 uint32_t sdhost_device_block_size( void );
 
 #endif

@@ -2514,7 +2514,7 @@ emmc_response_t emmc_init( void ) {
 }
 
 /**
- * @fn emmc_response_t emmc_transfer_block(uint32_t*, const size_t, uint32_t, const emmc_operation_t, const size_t)
+ * @fn emmc_response_t emmc_transfer_block(uint32_t*, const size_t, uint32_t, const emmc_operation_t, const uint64_t)
  * @brief Transfer block from / to sd card to / from buffer
  *
  * @param buffer
@@ -2529,7 +2529,7 @@ emmc_response_t emmc_transfer_block(
   const size_t buffer_size,
   uint32_t block_number,
   const emmc_operation_t operation,
-  const size_t shm_id
+  const uint64_t shm_id
 ) {
   // space for responses
   emmc_response_t response;

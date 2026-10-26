@@ -271,3 +271,13 @@ void syscall_rpc_cleanup( void* context ) {
   // populate dummy success
   syscall_populate_success( context, 0 );
 }
+
+/**
+ * @fn void syscall_rpc_mailbox_size(void*)
+ * @brief Syscall to get rpc mailbox size
+ * @param context
+ */
+void syscall_rpc_mailbox_size( void* context ) {
+  // return mailbox size
+  syscall_populate_success( context, MAILBOX_SIZE );
+}

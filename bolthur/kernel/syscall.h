@@ -56,6 +56,7 @@
 #define SYSCALL_RPC_END 36
 #define SYSCALL_RPC_WAIT_FOR_READY 37
 #define SYSCALL_RPC_CLEANUP 38
+#define SYSCALL_RPC_MAILBOX_SIZE 39
 
 #define SYSCALL_INTERRUPT_ACQUIRE 40
 #define SYSCALL_INTERRUPT_RELEASE 41
@@ -111,6 +112,7 @@ void syscall_rpc_set_ready( void* );
 void syscall_rpc_end( void* );
 void syscall_rpc_wait_for_ready( void* );
 void syscall_rpc_cleanup( void* );
+void syscall_rpc_mailbox_size( void* );
 
 void syscall_timer_tick_count( void* );
 void syscall_timer_frequency( void* );

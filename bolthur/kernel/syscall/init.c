@@ -74,6 +74,7 @@ bool syscall_init( void ) {
     || ! SYSCALL_BIND( SYSCALL_RPC_END, syscall_rpc_end )
     || ! SYSCALL_BIND( SYSCALL_RPC_WAIT_FOR_READY, syscall_rpc_wait_for_ready )
     || ! SYSCALL_BIND( SYSCALL_RPC_CLEANUP, syscall_rpc_cleanup )
+    || ! SYSCALL_BIND( SYSCALL_RPC_MAILBOX_SIZE, syscall_rpc_mailbox_size )
   ) {
     return false;
   }
