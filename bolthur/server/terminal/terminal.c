@@ -287,6 +287,17 @@ char* terminal_get_active( void ) {
     return nullptr;
   }
   memset( active, 0, sizeof( *active ) );
+  active->shm_id = _syscall_memory_shared_create( sizeof( console_command_active_data_t ) );
+  if ( errno ) {
+    free( active );
+    return nullptr;
+  }
+  const console_command_active_data_t* data = _syscall_memory_shared_attach(
+    active->shm_id, ( uintptr_t )NULL );
+  if ( errno ) {
+    free( active );
+    return nullptr;
+  }
   // call get active console
   const int result = ioctl(
     console_manager_fd,
@@ -299,19 +310,22 @@ char* terminal_get_active( void ) {
   );
   // handle error
   if ( 0 != result ) {
+    _syscall_memory_shared_detach( active->shm_id );
     free( active );
     return nullptr;
   }
   // allocate memory
-  char* path = malloc( sizeof( char ) * ( strlen( active->path ) + 1 ) );
+  char* path = malloc( sizeof( char ) * ( strlen( data->path ) + 1 ) );
   if ( ! path ) {
+    _syscall_memory_shared_detach( active->shm_id );
     free( active );
     return nullptr;
   }
   // clear and copy
-  memset( path, 0, sizeof( char ) * ( strlen( active->path ) + 1 ) );
-  strcpy( path, active->path );
+  memset( path, 0, sizeof( char ) * ( strlen( data->path ) + 1 ) );
+  strcpy( path, data->path );
   // free command
+  _syscall_memory_shared_detach( active->shm_id );
   free( active );
   // return path
   return path;

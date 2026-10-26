@@ -46,7 +46,11 @@ typedef struct {
 } console_command_input_t;
 
 typedef struct {
-  char path[ PATH_MAX ];
+  uint64_t shm_id;
 } console_command_active_t;
+
+typedef struct {
+  char path[ PATH_MAX ];
+} console_command_active_data_t;
 
 #endif

@@ -114,31 +114,43 @@ void rpc_custom_bootstrap(
   }
   // allocate for data fetching
   auto const command = ( terminal_bootstrap_t* )request->container;
+  // map shared memory
+  void* shm_addr = _syscall_memory_shared_attach( command->shm_id, ( uintptr_t )NULL );
+  if ( errno ) {
+    error.status = -errno;
+    bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
+    return;
+  }
+  auto const command_data = ( terminal_bootstrap_data_t* )shm_addr;
   // build search object
   ini_search_font search = { .target_key = "FONT", };
   ini_search_width_height width = { .target_key = "WIDTH" };
   ini_search_width_height height = { .target_key = "HEIGHT" };
   // load stuff font
-  if ( load_ini_path( command->config, INI_DEFAULT_FORMAT, NULL, ini_lookup, &search ) ) {
+  if ( load_ini_path( command_data->config, INI_DEFAULT_FORMAT, NULL, ini_lookup, &search ) ) {
+    _syscall_memory_shared_detach( command->shm_id );
     free( request );
     error.status = -EINVAL;
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
     return;
   }
   // load width font
-  if ( load_ini_path( command->config, INI_DEFAULT_FORMAT, NULL, ini_lookup_width_height, &width ) ) {
+  if ( load_ini_path( command_data->config, INI_DEFAULT_FORMAT, NULL, ini_lookup_width_height, &width ) ) {
+    _syscall_memory_shared_detach( command->shm_id );
     free( request );
     error.status = -EINVAL;
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
     return;
   }
   // load height font
-  if ( load_ini_path( command->config, INI_DEFAULT_FORMAT, NULL, ini_lookup_width_height, &height ) ) {
+  if ( load_ini_path( command_data->config, INI_DEFAULT_FORMAT, NULL, ini_lookup_width_height, &height ) ) {
+    _syscall_memory_shared_detach( command->shm_id );
     free( request );
     error.status = -EINVAL;
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
     return;
   }
+  _syscall_memory_shared_detach( command->shm_id );
   // handle not found
   if ( ! search.found || ! width.found || ! height.found ) {
     free( request );

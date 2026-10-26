@@ -277,7 +277,7 @@ bool configuration_handle( const char* path, const char* bootarg ) {
         exit( -1 );
       }
       // handle success not one
-      if (response->result != 0) {
+      if ( 0 != response->result ) {
         #if defined( BOOT_ENABLE_OUTPUT )
           EARLY_STARTUP_PRINT( "Boot init request failed!\r\n" )
         #endif

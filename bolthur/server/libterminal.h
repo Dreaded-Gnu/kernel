@@ -28,8 +28,12 @@
 #define TERMINAL_ERR_START ( TERMINAL_OUT_START + 1 )
 
 typedef struct {
-  char config[ PATH_MAX ];
+  uint64_t shm_id;
 } terminal_bootstrap_t;
+
+typedef struct  {
+  char config[ PATH_MAX ];
+} terminal_bootstrap_data_t;
 
 typedef struct {
   size_t len;

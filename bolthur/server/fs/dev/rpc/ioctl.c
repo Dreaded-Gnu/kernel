@@ -152,7 +152,7 @@ void rpc_handle_ioctl(
     false
   );
   if ( errno ) {
-    err_response.status = -EIO;
+    err_response.status = -errno;
     bolthur_rpc_return( type, &err_response, sizeof( err_response ), nullptr, 0 );
     free( request );
     return;

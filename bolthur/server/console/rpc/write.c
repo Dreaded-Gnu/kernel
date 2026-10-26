@@ -146,7 +146,7 @@ void rpc_handle_write(
     : handler->console->err;
   // build terminal command
   const size_t terminal_size = sizeof( terminal_write_request_t ) +
-    sizeof( char ) * ( strlen(handler->console->path) + 1 );
+    sizeof( char ) * ( strlen( handler->console->path ) + 1 );
   terminal_write_request_t* terminal = malloc( terminal_size );
   if ( ! terminal ) {
     response.len = -ENOMEM;

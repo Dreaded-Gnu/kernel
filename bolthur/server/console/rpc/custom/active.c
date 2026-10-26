@@ -62,22 +62,38 @@ void rpc_custom_handle_get_active(
   console_t* console = console_get_active();
   if ( ! console ) {
     error.status = -ENODATA;
+    free( request );
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
     return;
   }
+  // get container
+  auto const container = ( console_command_active_t* )request->container;
+  // map shared memory
+  auto const data = ( console_command_active_data_t* )_syscall_memory_shared_attach( container->shm_id, ( uintptr_t )NULL );
+  if ( errno ) {
+    error.status = -errno;
+    free( request );
+    bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
+    return;
+  }
+  // copy over path
+  strncpy( data->path, console->path, PATH_MAX - 1 );
+  // allocate space for return
   constexpr size_t response_size = sizeof( vfs_ioctl_perform_response_t ) + sizeof( console_command_active_t );
   vfs_ioctl_perform_response_t* response = malloc( response_size );
   if ( ! response ) {
     error.status = -ENOMEM;
+    free( request );
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
     return;
   }
   memset( response, 0, response_size );
   // populate path
   auto const command = ( console_command_active_t* )response->container;
-  strncpy( command->path, console->path, PATH_MAX - 1 );
+  memcpy( command, container, sizeof( console_command_active_t ) );
   // return and free up
   bolthur_rpc_return( RPC_VFS_IOCTL, response, response_size, nullptr, 0 );
+  _syscall_memory_shared_detach( container->shm_id );
   free( response );
   free( request );
 }

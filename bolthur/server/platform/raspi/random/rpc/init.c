@@ -32,7 +32,7 @@ bool rpc_init( void ) {
   bolthur_rpc_bind( RPC_VFS_READ, rpc_handle_read, true );
   if ( errno ) {
     #if defined( RANDOM_ENABLE_OUTPUT )
-      STARTUP_PRINT( "Unable to register handler add!\r\n" )
+      STARTUP_PRINT( "Unable to register handler read: %s!\r\n", strerror( errno ) )
     #endif
     return false;
   }

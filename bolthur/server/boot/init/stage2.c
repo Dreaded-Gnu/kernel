@@ -45,14 +45,32 @@ static void bootstrap_terminal( void ) {
   }
   // clear memory
   memset( bootstrap, 0, sizeof( *bootstrap ) );
+  const uint64_t shm_id = _syscall_memory_shared_create( sizeof( terminal_bootstrap_data_t ) );
+  if ( errno ) {
+    #if defined( BOOT_ENABLE_OUTPUT )
+      STARTUP_PRINT( "unable to acquire space for terminal bootstrap\r\n" )
+    #endif
+    exit( 1 );
+  }
+  void* shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
+  if ( errno ) {
+    #if defined( BOOT_ENABLE_OUTPUT )
+      STARTUP_PRINT( "unable to map space for terminal bootstrap\r\n" )
+    #endif
+    exit( 1 );
+  }
+  // cache data
+  terminal_bootstrap_data_t* data = shm_addr;
   // prepare terminal bootstrap
-  strncpy( bootstrap->config, "/etc/vconsole.conf", PATH_MAX );
+  strncpy( data->config, "/etc/vconsole.conf", PATH_MAX );
+  bootstrap->shm_id = shm_id;
   // open terminal
   const int term = open( "/dev/terminal", O_RDWR );
   if ( -1 == term ) {
     #if defined( BOOT_ENABLE_OUTPUT )
       STARTUP_PRINT( "unable to open terminal for bootstrap\r\n" )
     #endif
+    _syscall_memory_shared_detach( shm_id );
     exit( 1 );
   }
   // perform ioctl
@@ -70,8 +88,10 @@ static void bootstrap_terminal( void ) {
     #if defined( BOOT_ENABLE_OUTPUT )
       STARTUP_PRINT( "unable to perform terminal ioctl command\r\n" )
     #endif
+    _syscall_memory_shared_detach( shm_id );
     exit( 1 );
   }
+  _syscall_memory_shared_detach( shm_id );
   free( bootstrap );
   close( term );
 }
