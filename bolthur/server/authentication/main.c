@@ -83,9 +83,9 @@ int main( int argc, char* argv[] ) {
   // enable rpc
   _syscall_rpc_set_ready( true );
   // wait for device
-  vfs_wait_for_path( "/dev/manager/device" );
+  vfs_wait_for_path( "/dev/manager/device", true );
   // wait for ramdisk to prevent lockup
-  vfs_wait_for_path( "/dev/ramdisk" );
+  vfs_wait_for_path( "/dev/ramdisk", true );
   // add device file
   constexpr uint32_t device_info[] = { AUTHENTICATE_REQUEST, AUTHENTICATE_FETCH, AUTHENTICATE_RELOAD, };
   #if defined( AUTHENTICATION_ENABLE_OUTPUT )

@@ -21,6 +21,7 @@
 #include "../../../../panic.h"
 #include "../../../../syscall.h"
 #include "../../../../rpc/generic.h"
+#include "../../../../rpc/backup.h"
 #include "../../../../rpc/data.h"
 #include "../../../../lib/stdlib.h"
 #include "../../../../lib/string.h"

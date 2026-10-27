@@ -161,7 +161,7 @@ static void mount_root( const char* bootarg ) {
     STARTUP_PRINT( "waiting for %s\r\n", root_device )
   #endif
   // wait for root device
-  vfs_wait_for_path( root_device );
+  vfs_wait_for_path( root_device, true );
 
   // mount root partition
   #if defined( BOOT_ENABLE_OUTPUT )
@@ -216,7 +216,7 @@ static void mount_remaining( void ) {
       #endif
       fflush( stdout );
       // wait for device, just to be sure
-      vfs_wait_for_path( m->mnt_fsname );
+      vfs_wait_for_path( m->mnt_fsname, true );
       // build flags
       unsigned long mount_flags = MS_MGC_VAL;
       if ( hasmntopt( m, MNTOPT_RO ) ) {

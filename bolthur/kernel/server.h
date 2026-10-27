@@ -28,6 +28,6 @@
 /**
  * @brief Fixed process id for idle daemon
  */
-#define SERVER_IDLE_DAEMON_ID 3
+#define SERVER_IDLE_DAEMON_ID 4
 
 #endif

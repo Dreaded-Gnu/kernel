@@ -138,7 +138,7 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   }
 
   // wait for hcd to be populated
-  vfs_wait_for_path( HCD_DEVICE_PATH );
+  vfs_wait_for_path( HCD_DEVICE_PATH, true );
 
   // query allowed rpc origin
   const pid_t allowed_rpc_origin = vfs_get_file_handler( HCD_DEVICE_PATH );

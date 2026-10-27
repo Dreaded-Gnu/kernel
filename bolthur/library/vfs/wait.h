@@ -20,6 +20,6 @@
 #ifndef _LIBVFS_WAIT_H
 #define _LIBVFS_WAIT_H
 
-void vfs_wait_for_path( const char* );
+void vfs_wait_for_path( const char*, bool );
 
 #endif

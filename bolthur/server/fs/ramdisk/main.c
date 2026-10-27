@@ -82,7 +82,7 @@ int main( int argc, char* argv[] ) {
   // enable rpc
   _syscall_rpc_set_ready( true );
   // wait for device
-  vfs_wait_for_path( "/dev/manager/device" );
+  vfs_wait_for_path( "/dev/manager/device", true );
 
   // add device file
   if ( ! vfs_dev_add_file( "/dev/ramdisk", nullptr, 0, nullptr ) ) {

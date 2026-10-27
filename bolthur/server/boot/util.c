@@ -98,7 +98,7 @@ pid_t util_execute_device_server(
   // free ioctl start object
   free( start );
   // wait for device
-  vfs_wait_for_path( device );
+  vfs_wait_for_path( device, true );
   // return pid finally
   return proc;
 }

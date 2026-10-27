@@ -17,6 +17,7 @@
  * along with bolthur/kernel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -31,10 +32,75 @@
 #include "../../../library/vfs/wait.h"
 
 pid_t vfs_pid = 2;
-pid_t idle_pid = 3;
-pid_t dev_pid = 4;
+pid_t dev_pid = 3;
+pid_t idle_pid = 4;
 pid_t ramdisk_pid = 5;
 pid_t authentication_pid = 6;
+
+/**
+ * @fn pid_t stat_handler(const char*)
+ * @brief Stat handler helper
+ * @param file
+ * @return
+ */
+static pid_t stat_handler( const char* file ) {
+  // variables
+  vfs_stat_request_t* request = malloc( sizeof( vfs_stat_request_t ) );
+  if ( ! request ) {
+    errno = ENOMEM;
+    return -1;
+  }
+  // clear message structures
+  memset( request, 0, sizeof( vfs_stat_request_t ) );
+  // copy stuff to message
+  strncpy( request->file_path, file, PATH_MAX - 1 );
+  // raise rpc and wait for return
+  const uint64_t response_id = bolthur_rpc_raise(
+    RPC_VFS_STAT,
+    VFS_DAEMON_ID,
+    request,
+    sizeof( vfs_stat_request_t ),
+    nullptr,
+    RPC_VFS_STAT,
+    request,
+    sizeof( vfs_stat_request_t ),
+    0,
+    0,
+    nullptr,
+    false
+  );
+  // handle error
+  if ( 0 == response_id ) {
+    free( request );
+    return -1;
+  }
+  size_t data_size;
+  vfs_stat_response_t* response = bolthur_rpc_fetch_from_mailbox(
+    response_id,
+    &data_size,
+    true,
+    NULL
+  );
+  // handle error
+  if ( ! response ) {
+    free( request );
+    return -1;
+  }
+  // handle failure
+  if ( ! response->success ) {
+    free( request );
+    free( response );
+    errno = EIO;
+    return -1;
+  }
+  // cache handler
+  const pid_t handler = response->handler;
+  // free request and response
+  free( request );
+  free( response );
+  // return success
+  return handler;
+}
 
 /**
  * @fn void init_stage1(void)
@@ -67,7 +133,6 @@ void init_stage1( void ) {
     // fork process and handle possible error
     EARLY_STARTUP_PRINT( "Forking process for vfs start!\r\n" )
   #endif
-  pid_t forked_process_idle;
   pid_t forked_process = _syscall_process_fork();
   if ( errno ) {
     #if defined( BOOT_ENABLE_OUTPUT )
@@ -76,53 +141,8 @@ void init_stage1( void ) {
     #endif
     exit( -1 );
   }
-  // non fork only
-  if ( 0 != forked_process ) {
-    #if defined( BOOT_ENABLE_OUTPUT )
-      EARLY_STARTUP_PRINT( "Forking process for idle start!\r\n" )
-    #endif
-    forked_process_idle = _syscall_process_fork();
-    if ( errno ) {
-      #if defined( BOOT_ENABLE_OUTPUT )
-        EARLY_STARTUP_PRINT( "Unable to fork process\r\n" )
-        EARLY_STARTUP_PRINT( "%s\r\n", strerror( errno ) )
-      #endif
-      exit( -1 );
-    }
-    // fork only
-    if ( 0 == forked_process_idle ) {
-      _syscall_rpc_set_ready( false );
-      // get idle image
-      size_t idle_size;
-      void* idle_image = ramdisk_lookup( disk, "ramdisk/bin/server/idle", &idle_size );
-      #if defined( BOOT_ENABLE_OUTPUT )
-        EARLY_STARTUP_PRINT( "Idle image: %p!\r\n", idle_image )
-      #endif
-      if ( ! idle_image ) {
-        #if defined( BOOT_ENABLE_OUTPUT )
-          EARLY_STARTUP_PRINT( "Idle not found!\r\n" )
-        #endif
-        exit( -1 );
-      }
-      #if defined( BOOT_ENABLE_OUTPUT )
-        EARLY_STARTUP_PRINT( "Replacing fork with idle image %p!\r\n", idle_image );
-      _syscall_process_replace( idle_image, nullptr, nullptr );
-      #endif
-      if ( errno ) {
-        #if defined( BOOT_ENABLE_OUTPUT )
-          const int e = errno;
-          EARLY_STARTUP_PRINT( "Unable to replace process with image\r\n" )
-          EARLY_STARTUP_PRINT( "%s\r\n", strerror( e ) )
-        #endif
-        exit( -1 );
-      }
-    } else {
-      EARLY_STARTUP_PRINT( "pid = %d\r\n", forked_process_idle )
-    }
-  }
   // fork only
   if ( 0 == forked_process ) {
-    _syscall_rpc_wait_for_ready( idle_pid );
     // start /dev
     #if defined( BOOT_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "Starting for dev server...\r\n" )
@@ -171,7 +191,47 @@ void init_stage1( void ) {
       #if defined( BOOT_ENABLE_OUTPUT )
         EARLY_STARTUP_PRINT( "waiting for vfs and dev!\r\n" )
       #endif
-      vfs_wait_for_path( ":/vfs" );
+      vfs_wait_for_path( ":/vfs", false );
+
+      // start /dev/idle
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Forking process for idle start!\r\n" )
+      #endif
+      inner_forked_process = _syscall_process_fork();
+      if ( errno ) {
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Unable to fork process\r\n" )
+          EARLY_STARTUP_PRINT( "%s\r\n", strerror( errno ) )
+        #endif
+        exit( -1 );
+      }
+      if ( 0 == inner_forked_process ) {
+        // get idle image
+        size_t idle_size;
+        void* idle_image = ramdisk_lookup( disk, "ramdisk/bin/server/idle", &idle_size );
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Idle image: %p!\r\n", idle_image )
+        #endif
+        if ( ! idle_image ) {
+          #if defined( BOOT_ENABLE_OUTPUT )
+            EARLY_STARTUP_PRINT( "Idle not found!\r\n" )
+          #endif
+          exit( -1 );
+        }
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Replacing fork with idle image %p!\r\n", idle_image );
+        _syscall_process_replace( idle_image, nullptr, nullptr );
+        #endif
+        if ( errno ) {
+          #if defined( BOOT_ENABLE_OUTPUT )
+            const int e = errno;
+            EARLY_STARTUP_PRINT( "Unable to replace process with image\r\n" )
+            EARLY_STARTUP_PRINT( "%s\r\n", strerror( e ) )
+          #endif
+          exit( -1 );
+        }
+      }
+
       // start /dev/ramdisk
       void* ramdisk_image = ramdisk_lookup( disk, "ramdisk/bin/server/fs/ramdisk", nullptr );
       if ( ! ramdisk_image ) {
@@ -280,12 +340,6 @@ void init_stage1( void ) {
     #endif
     exit( -1 );
   }
-  if ( idle_pid != forked_process_idle ) {
-    #if defined( BOOT_ENABLE_OUTPUT )
-      EARLY_STARTUP_PRINT( "Invalid process id for idle daemon!\r\n" )
-    #endif
-    exit( -1 );
-  }
   // enable rpc and wait for process to be ready
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "set rpc ready!\r\n" )
@@ -300,16 +354,23 @@ void init_stage1( void ) {
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "waiting for vfs!\r\n" )
   #endif
-  vfs_wait_for_path( ":/vfs" );
+  vfs_wait_for_path( ":/vfs", true );
   // enough to wait here for ramdisk and authentication, since both need dev server
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Waiting for authentication device\r\n" )
   #endif
-  vfs_wait_for_path( AUTHENTICATION_DEVICE );
+  vfs_wait_for_path( AUTHENTICATION_DEVICE, true );
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Waiting for ramdisk\r\n" )
   #endif
-  vfs_wait_for_path( "/dev/ramdisk" );
+  vfs_wait_for_path( "/dev/ramdisk", true );
+  #if defined( BOOT_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Waiting for idle\r\n" )
+  #endif
+  vfs_wait_for_path( "/dev/idle", true );
+  assert( idle_pid == stat_handler( "/dev/idle" ) );
+  assert( ramdisk_pid == stat_handler( "/dev/ramdisk" ) );
+  assert( authentication_pid == stat_handler( "/dev/authentication" ) );
   // close ramdisk
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Closing early ramdisk\r\n" )

@@ -68,8 +68,8 @@ void rpc_handle_stat(
     return;
   }
   // get mtime
-  time_t sec = th_get_mtime( info );
-  long nsec = 0;
+  const time_t sec = th_get_mtime( info );
+  const long nsec = 0;
   // populate data
   response.info.st_size = ( off_t )th_get_size( info );
   response.info.st_dev = makedev(

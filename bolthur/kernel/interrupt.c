@@ -26,6 +26,7 @@
 #include "panic.h"
 #include "mm/heap.h"
 #include "rpc/generic.h"
+#include "rpc/backup.h"
 #include "interrupt.h"
 #include "debug/debug.h"
 #if defined( PRINT_INTERRUPT )

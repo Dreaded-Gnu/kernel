@@ -159,13 +159,7 @@ void task_queue_dequeue_specific( task_thread_t* thread ) {
   // handle not current thread
   if ( task_thread_current_thread != thread ) {
     // remove node
-    const bool result = avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
-    #if defined( PRINT_PROCESS )
-      if ( ! result ) {
-        DEBUG_OUTPUT( "Removal of %d failed: %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
-      }
-    #endif
-    assert( result );
+    assert( avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node ) );
     // decrement count
     queue_manager->thread_count--;
   }
@@ -186,8 +180,7 @@ void task_queue_enqueue( task_thread_t* thread ) {
   // prepare queue node
   avl_prepare_node( &thread->queue_node, thread->vruntime );
   // add to tree
-  const bool result = avl_insert_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node );
-  assert( result );
+  assert( avl_insert_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node ) );
   // increment count
   queue_manager->thread_count++;
 }
@@ -227,14 +220,7 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
     DEBUG_OUTPUT( "Unblocking %d from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
   #endif
   // remove from blocked list
-  const bool was_blocked = list_remove_data( queue_manager->thread_wait_queue, thread, true );
-  #if defined( PRINT_PROCESS )
-    if ( ! was_blocked ) {
-      DEBUG_OUTPUT( "was_blocked failed from %p\r\n", ( void* )__builtin_return_address( 0 ) )
-    }
-  #endif
-  // assert blocked
-  assert( was_blocked );
+  assert( list_remove_data( queue_manager->thread_wait_queue, thread, true ) );
   // adjust vruntime for fair scheduling
   if ( thread->vruntime < queue_manager->min_vruntime ) {
     #if defined( PRINT_PROCESS )

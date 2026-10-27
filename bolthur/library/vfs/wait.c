@@ -22,13 +22,16 @@
 #include "wait.h"
 
 /**
- * @fn void vfs_wait_for_path(const char*)
+ * @fn void vfs_wait_for_path(const char*, bool)
  * @brief Function to wait for path to come up
  * @param path path to check
+ * @param perform_sleep perform sleep while waiting for path
  */
-void vfs_wait_for_path( const char* path ) {
+void vfs_wait_for_path( const char* path, const bool perform_sleep ) {
   struct stat buffer;
   while( 0 != stat( path, &buffer ) ) {
-    sleep( 1 );
+    if ( perform_sleep ) {
+      sleep( 1 );
+    }
   }
 }
