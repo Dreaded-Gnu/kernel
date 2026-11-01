@@ -183,12 +183,6 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
     return -1;
   }
 
-  // enable rpc
-  #if defined( DEV_ENABLE_OUTPUT )
-    EARLY_STARTUP_PRINT( "Set rpc ready flag\r\n" )
-  #endif
-  _syscall_rpc_set_ready( true );
-
   // device info data
   constexpr size_t device_info[] = { DEV_START, DEV_KILL, };
   const pid_t handler = getpid();
@@ -238,6 +232,12 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
     #endif
     exit( -1 );
   }
+
+  // enable rpc
+  #if defined( DEV_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Set rpc ready flag\r\n" )
+  #endif
+  _syscall_rpc_set_ready( true );
 
   // wait for rpc
   #if defined( DEV_ENABLE_OUTPUT )

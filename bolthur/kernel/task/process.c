@@ -795,7 +795,7 @@ static int map_replace_random( const size_t size ) {
  */
 int task_process_replace(
   task_process_t* proc,
-  const uint32_t nice_level,
+  const int32_t nice_level,
   const uintptr_t elf,
   const char** argv,
   const char** env

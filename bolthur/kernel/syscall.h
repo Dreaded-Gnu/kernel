@@ -38,6 +38,7 @@
 #define SYSCALL_THREAD_CREATE 11
 #define SYSCALL_THREAD_EXIT 12
 #define SYSCALL_THREAD_ID 13
+#define SYSCALL_THREAD_NICE_LEVEL 14
 
 #define SYSCALL_MEMORY_ACQUIRE 21
 #define SYSCALL_MEMORY_RELEASE 22
@@ -90,6 +91,7 @@ void syscall_process_halt( void* );
 void syscall_thread_create( void* );
 void syscall_thread_exit( void* );
 void syscall_thread_id( void* );
+void syscall_thread_nice_level( void* );
 
 void syscall_memory_acquire( void* );
 void syscall_memory_release( void* );

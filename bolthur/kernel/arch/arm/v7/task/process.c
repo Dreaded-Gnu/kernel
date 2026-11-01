@@ -160,7 +160,7 @@ void task_process_schedule( [[maybe_unused]] event_origin_t origin, void* contex
   }
 
   // update vruntime
-  timer_increase_vruntime( running_thread, timer_get_elapsed_since_last_interrupt() );
+  timer_increase_vruntime( running_thread );
   // loop while next thread is not set, or it's not ready
   while ( ! next_thread ) {
     // get next thread

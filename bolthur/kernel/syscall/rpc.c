@@ -119,6 +119,11 @@ void syscall_rpc_set_ready( void* context ) {
       task_thread_current_thread->process->rpc_ready ? 1 : 0
     )
   #endif
+  // don't unblock if not ready
+  if ( ! ready ) {
+    syscall_populate_success( context, 0 );
+    return;
+  }
   // unblock parent which might wait for process to be rpc ready!
   const task_process_t* parent = task_process_get_by_id( process->parent );
   if ( parent ) {
@@ -130,6 +135,20 @@ void syscall_rpc_set_ready( void* context ) {
       TASK_THREAD_STATE_RPC_WAIT_FOR_READY,
       ( task_state_data_t ){ .data_size = ( size_t )process->id }
     );
+  }
+  // unblock child which might wait for process to be rpc ready!
+  auto current = task_queue_get_first_blocked();
+  while ( current ) {
+    auto const t = ( task_thread_t* )current->data;
+    auto const next = current->next;
+    if ( t->process->parent == process->id ) {
+      task_unblock_threads(
+        t->process,
+        TASK_THREAD_STATE_RPC_WAIT_FOR_READY,
+        ( task_state_data_t ){ .data_size = ( size_t )process->id }
+      );
+    }
+    current = next;
   }
   // return success
   syscall_populate_success( context, 0 );
@@ -206,11 +225,14 @@ void syscall_rpc_wait_for_ready( void* context ) {
     return;
   }
   // handle not parent
-  if ( target->parent != task_thread_current_thread->process->id ) {
+  if (
+    target->parent != task_thread_current_thread->process->id
+    && target->id != task_thread_current_thread->process->parent
+  ) {
     // debug output
     #if defined( PRINT_SYSCALL )
       DEBUG_OUTPUT(
-        "target with id %d is not a child of current process!\r\n",
+        "target with id %d is not a child of current process or vice versa!\r\n",
         target->id
       )
     #endif

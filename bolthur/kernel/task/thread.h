@@ -62,10 +62,12 @@ typedef struct  task_thread {
   rpc_backup_t* current_active_backup;
   /** virtual total runtime */
   uint64_t vruntime;
+  /** last active time */
+  uint64_t exec_start;
   /** weight */
   uint32_t weight;
   /** nice level of the task */
-  uint32_t nice_level;
+  int32_t nice_level;
 } task_thread_t;
 
 extern task_thread_t* task_thread_current_thread;
@@ -83,6 +85,11 @@ extern const uint32_t task_thread_priority_weight[ 40 ];
 #define TASK_THREAD_DEFAULT_NICE_LEVEL 0
 
 /**
+ * @brief Min thread nice level
+ */
+#define TASK_THREAD_MIN_NICE_LEVEL ( -20 )
+
+/**
  * @brief Max thread nice level
  */
 #define TASK_THREAD_MAX_NICE_LEVEL 19
@@ -95,7 +102,7 @@ void task_thread_reset_current( void );
 pid_t task_thread_generate_id( void );
 list_manager_t* task_thread_init( void );
 void task_thread_destroy( avl_tree_t* );
-task_thread_t* task_thread_create( uintptr_t, task_process_t*, size_t );
+task_thread_t* task_thread_create( uintptr_t, task_process_t*, int32_t );
 task_thread_t* task_thread_fork( task_process_t*, const task_thread_t* );
 [[noreturn]] void task_thread_switch_to( uintptr_t );
 bool task_thread_push_arguments( const task_thread_t*, char**, char** );

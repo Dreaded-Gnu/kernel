@@ -319,3 +319,61 @@ void syscall_thread_exit( [[maybe_unused]] void* context ) {
   // kill thread and trigger scheduling
   task_thread_kill( task_thread_current_thread, true );
 }
+
+/**
+ * @fn void syscall_thread_nice_level(void*)
+ * @brief Syscall manipulate nice level
+ * @param context
+ */
+void syscall_thread_nice_level( void* context ) {
+  // debug output
+  #if defined( PRINT_SYSCALL )
+    DEBUG_OUTPUT( "thread exit called\r\n" )
+  #endif
+  // handle invalid pid
+  if ( task_thread_current_thread->process->id != SERVER_NICE_DAEMON_ID ) {
+    syscall_populate_error( context, ( size_t )-ENOSYS );
+    return;
+  }
+  // get pid and thread id
+  const pid_t pid = ( pid_t )syscall_get_parameter( context, 0 );
+  const pid_t tid = ( pid_t )syscall_get_parameter( context, 1 );
+  const int32_t nice_level = ( int32_t )syscall_get_parameter( context, 2 );
+  // get process
+  task_process_t* proc = task_process_get_by_id( pid );
+  // handle not found
+  if ( ! proc ) {
+    syscall_populate_error( context, ( size_t )-ESRCH );
+    return;
+  }
+  // find thread by id
+  task_thread_t* thread = nullptr;
+  auto current = proc->thread_list->first;
+  while ( current ) {
+    auto const current_thread = ( task_thread_t* )current->data;
+    if ( current_thread->id == tid ) {
+      thread = current_thread;
+    }
+    current = current->next;
+  }
+  // handle no thread
+  if ( ! thread ) {
+    syscall_populate_error( context, ( size_t )-ESRCH );
+    return;
+  }
+  // calculate new nice level
+  const int32_t new_nice_level = thread->nice_level + nice_level;
+  // validate
+  if (
+    TASK_THREAD_MIN_NICE_LEVEL > new_nice_level
+    || TASK_THREAD_MAX_NICE_LEVEL < new_nice_level
+  ) {
+    syscall_populate_error( context, ( size_t )-EINVAL );
+    return;
+  }
+  // set new nice level and adjust weight
+  thread->nice_level = new_nice_level;
+  thread->weight = task_thread_priority_weight[ thread->nice_level + 20 ];
+  // return success
+  syscall_populate_success( context, 0 );
+}

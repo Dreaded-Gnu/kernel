@@ -135,6 +135,17 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
     return -1;
   }
 
+  // set nice level
+  #if defined( TERMINAL_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Set nice level\r\n" )
+  #endif
+  if ( 0 != nice( -20 ) ) {
+    #if defined( TERMINAL_ENABLE_OUTPUT )
+      EARLY_STARTUP_PRINT( "Unable to set nice level\r\n" )
+    #endif
+    return -1;
+  }
+
   // wait for rpc
   #if defined( TERMINAL_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Wait for rpc\r\n" )

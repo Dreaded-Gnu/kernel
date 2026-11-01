@@ -65,7 +65,7 @@ void rpc_termios_set(
   }
   // allocate response
   const size_t container_size = data_size - sizeof( vfs_ioctl_perform_request_t );
-  const size_t response_size = container_size + sizeof( vfs_ioctl_perform_request_t );
+  const size_t response_size = container_size + sizeof( vfs_ioctl_perform_response_t );
   vfs_ioctl_perform_response_t* response = malloc( response_size );
   if ( ! response ) {
     error.status = -ENOMEM;

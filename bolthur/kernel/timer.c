@@ -26,6 +26,7 @@
 #include "rpc/backup.h"
 #include "rpc/generic.h"
 #include "debug/debug.h"
+#include "lib/stdint.h"
 #include "task/queue.h"
 #if defined( PRINT_TIMER )
   #include "debug/debug.h"
@@ -206,17 +207,16 @@ bool timer_unregister_callback( const uint64_t id ) {
 }
 
 /**
- * @fn void timer_handle_vruntime( uint64_t )
+ * @fn void timer_handle_vruntime( void )
  * @brief Function to handle vruntime update
- * @param ticks passed ticks
  */
-void timer_handle_vruntime( const uint64_t ticks ) {
+void timer_handle_vruntime( void ) {
   // get possible next thread
   auto const thread = task_queue_peek();
   // handle no thread
   if ( ! thread || ! task_thread_current_thread ) {
     // increase vruntime
-    timer_increase_vruntime( task_thread_current_thread, ticks );
+    timer_increase_vruntime( task_thread_current_thread );
     // skip rest
     return;
   }
@@ -230,22 +230,31 @@ void timer_handle_vruntime( const uint64_t ticks ) {
     return;
   }
   // increase vruntime
-  timer_increase_vruntime( task_thread_current_thread, ticks );
+  timer_increase_vruntime( task_thread_current_thread );
 }
 
 /**
- * @fn void timer_increase_vruntime( task_thread_t*, uint64_t )
+ * @fn void timer_increase_vruntime( task_thread_t* )
  * @brief Helper to increase vruntime
  * @param thread thread to update vruntime of
- * @param ticks passed ticks
  */
-void timer_increase_vruntime( task_thread_t* thread, const uint64_t ticks ) {
+void timer_increase_vruntime( task_thread_t* thread ) {
   // handle no valid thread
   if ( ! thread ) {
     return;
   }
-  // increase vruntime
-  thread->vruntime += ticks * TASK_THREAD_NICE_LEVEL_0 / thread->weight;
+  // get nanoseconds now and delta to last exec
+  const uint64_t now = timer_get_nano_seconds();
+  const uint64_t delta_exec = now - thread->exec_start;
+  // handle 0
+  if ( 0 >= delta_exec ) {
+    return;
+  }
+  // set exec start
+  thread->exec_start = now;
+  // calculate vruntime and increase it
+  const uint128_t delta_vruntime = ( ( uint128_t )delta_exec * TASK_THREAD_NICE_LEVEL_0 ) / thread->weight;
+  thread->vruntime += ( uint64_t )delta_vruntime;
   // update min vruntime
   task_queue_update_min_vruntime( thread );
 }

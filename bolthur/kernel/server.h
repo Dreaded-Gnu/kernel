@@ -30,4 +30,9 @@
  */
 #define SERVER_IDLE_DAEMON_ID 4
 
+/**
+ * @brief Fixed process id for nice daemon
+ */
+#define SERVER_NICE_DAEMON_ID 5
+
 #endif

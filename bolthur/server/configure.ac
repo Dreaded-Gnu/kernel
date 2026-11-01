@@ -171,6 +171,7 @@ AC_CONFIG_FILES([
   fs/vfs/Makefile
   idle/Makefile
   mount/Makefile
+  nice/Makefile
   partition/Makefile
   platform/Makefile
   platform/raspi/Makefile

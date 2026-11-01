@@ -44,7 +44,7 @@
   }
 
 /**
- * @fn task_thread_t task_thread_create*(uintptr_t, task_process_t*, size_t)
+ * @fn task_thread_t task_thread_create*(uintptr_t, task_process_t*, int32_t)
  * @brief Method to create thread structure
  *
  * @param entry entry point of the thread
@@ -55,7 +55,7 @@
 task_thread_t* task_thread_create(
   uintptr_t entry,
   task_process_t* process,
-  size_t nice_level
+  int32_t nice_level
 ) {
   // debug output
   #if defined( PRINT_PROCESS )
@@ -212,10 +212,6 @@ task_thread_t* task_thread_create(
   thread->stack_physical = stack_physical;
   thread->stack_virtual = stack_virtual;
   thread->stack_size = STACK_SIZE;
-  // overwrite nice level for idle daemon
-  if ( SERVER_IDLE_DAEMON_ID == process->id ) {
-    nice_level = TASK_THREAD_MAX_NICE_LEVEL;
-  }
   thread->nice_level = nice_level;
   thread->vruntime = task_queue_min_vruntime();
   thread->weight = task_thread_priority_weight[ thread->nice_level + 20 ];

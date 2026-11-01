@@ -34,8 +34,9 @@
 pid_t vfs_pid = 2;
 pid_t dev_pid = 3;
 pid_t idle_pid = 4;
-pid_t ramdisk_pid = 5;
-pid_t authentication_pid = 6;
+pid_t nice_pid = 5;
+pid_t ramdisk_pid = 6;
+pid_t authentication_pid = 7;
 
 /**
  * @fn pid_t stat_handler(const char*)
@@ -192,6 +193,8 @@ void init_stage1( void ) {
         EARLY_STARTUP_PRINT( "waiting for vfs and dev!\r\n" )
       #endif
       vfs_wait_for_path( ":/vfs", false );
+      // disable rpc again
+      _syscall_rpc_set_ready( false );
 
       // start /dev/idle
       #if defined( BOOT_ENABLE_OUTPUT )
@@ -221,6 +224,45 @@ void init_stage1( void ) {
         #if defined( BOOT_ENABLE_OUTPUT )
           EARLY_STARTUP_PRINT( "Replacing fork with idle image %p!\r\n", idle_image );
         _syscall_process_replace( idle_image, nullptr, nullptr );
+        #endif
+        if ( errno ) {
+          #if defined( BOOT_ENABLE_OUTPUT )
+            const int e = errno;
+            EARLY_STARTUP_PRINT( "Unable to replace process with image\r\n" )
+            EARLY_STARTUP_PRINT( "%s\r\n", strerror( e ) )
+          #endif
+          exit( -1 );
+        }
+      }
+
+      // start /dev/nice
+      #if defined( BOOT_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Forking process for nice start!\r\n" )
+      #endif
+      inner_forked_process = _syscall_process_fork();
+      if ( errno ) {
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Unable to fork process\r\n" )
+          EARLY_STARTUP_PRINT( "%s\r\n", strerror( errno ) )
+        #endif
+        exit( -1 );
+      }
+      if ( 0 == inner_forked_process ) {
+        // get idle image
+        size_t nice_size;
+        void* nice_image = ramdisk_lookup( disk, "ramdisk/bin/server/nice", &nice_size );
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Nice image: %p!\r\n", nice_image )
+        #endif
+        if ( ! nice_image ) {
+          #if defined( BOOT_ENABLE_OUTPUT )
+            EARLY_STARTUP_PRINT( "Nice not found!\r\n" )
+          #endif
+          exit( -1 );
+        }
+        #if defined( BOOT_ENABLE_OUTPUT )
+          EARLY_STARTUP_PRINT( "Replacing fork with nice image %p!\r\n", nice_image );
+        _syscall_process_replace( nice_image, nullptr, nullptr );
         #endif
         if ( errno ) {
           #if defined( BOOT_ENABLE_OUTPUT )
@@ -298,7 +340,7 @@ void init_stage1( void ) {
           EARLY_STARTUP_PRINT( "Replacing fork with authentication image %p!\r\n", authentication_image )
         #endif
         // build command
-        char* authentication_cmd[] = { "authentication", "1", "2", "3", "4", "5", "6", nullptr, };
+        char* authentication_cmd[] = { "authentication", "1", "2", "3", "4", "5", "6", "7", nullptr, };
         // call for replace and handle error
         _syscall_process_replace( authentication_image, authentication_cmd, nullptr );
         if ( errno ) {
@@ -368,9 +410,14 @@ void init_stage1( void ) {
     EARLY_STARTUP_PRINT( "Waiting for idle\r\n" )
   #endif
   vfs_wait_for_path( "/dev/idle", true );
+  #if defined( BOOT_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "Waiting for nice\r\n" )
+  #endif
+  vfs_wait_for_path( "/dev/nice", true );
   assert( idle_pid == stat_handler( "/dev/idle" ) );
   assert( ramdisk_pid == stat_handler( "/dev/ramdisk" ) );
   assert( authentication_pid == stat_handler( "/dev/authentication" ) );
+  assert( nice_pid == stat_handler( NICE_DEVICE ) );
   // close ramdisk
   #if defined( BOOT_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Closing early ramdisk\r\n" )

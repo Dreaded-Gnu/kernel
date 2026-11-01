@@ -23,6 +23,7 @@
 #include "../../../io.h"
 #include "../../../timer.h"
 #include "../../../interrupt.h"
+#include "../../../lib/stdint.h"
 #if defined( PRINT_TIMER )
   #include "../../lib/inttypes.h"
   #include "../../debug/debug.h"
@@ -120,7 +121,7 @@ static void timer_clear( [[maybe_unused]] void* context ) {
   // handle timers
   timer_handle_callback();
   // handle vruntime update with pass of context
-  timer_handle_vruntime( timer_get_elapsed_since_last_interrupt() );
+  timer_handle_vruntime();
   // update previous timer
   previous_timer_tick = timer_get_current_tick_value();
 }
@@ -180,9 +181,22 @@ uint32_t timer_get_interval( void ) {
 }
 
 /**
+ * @fn uint64_t timer_get_elapsed_since_last_interrupt(void)
  * @brief Get elapsed ticks since last interrupt
  * @return
  */
 uint64_t timer_get_elapsed_since_last_interrupt( void ) {
   return timer_get_current_tick_value() - previous_timer_tick;
+}
+
+/**
+ * @fn uint64_t timer_get_nano_seconds(void)
+ * @brief Method to get timer nano seconds
+ * @return
+ */
+uint64_t timer_get_nano_seconds( void ) {
+  const uint64_t freq = timer_get_frequency();
+  const uint64_t ticks = timer_get_current_tick_value();
+  const uint128_t extended_nanoseconds = ( ( uint128_t ) ticks * 1000000000 ) / freq;
+  return ( uint64_t )extended_nanoseconds;
 }

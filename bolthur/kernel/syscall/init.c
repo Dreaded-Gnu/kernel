@@ -48,6 +48,7 @@ bool syscall_init( void ) {
     ! SYSCALL_BIND( SYSCALL_THREAD_CREATE, syscall_thread_create )
     || ! SYSCALL_BIND( SYSCALL_THREAD_EXIT, syscall_thread_exit )
     || ! SYSCALL_BIND( SYSCALL_THREAD_ID, syscall_thread_id )
+    || ! SYSCALL_BIND( SYSCALL_THREAD_NICE_LEVEL, syscall_thread_nice_level )
   ) {
     return false;
   }

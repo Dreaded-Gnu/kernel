@@ -122,10 +122,13 @@ task_thread_t* task_queue_dequeue( void ) {
   }
   // remove it
   assert( avl_remove_by_node( queue_manager->thread_scheduling_tree, node ) );
-  // increment count
+  // get task
+  auto const thread = TASK_THREAD_GET_QUEUE_BLOCK( node );
+  // decrement count and weight
   queue_manager->thread_count--;
+  queue_manager->total_weight -= thread->weight;
   // return thread block
-  return TASK_THREAD_GET_QUEUE_BLOCK( node );
+  return thread;
 }
 
 /**
@@ -162,6 +165,7 @@ void task_queue_dequeue_specific( task_thread_t* thread ) {
     assert( avl_remove_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node ) );
     // decrement count
     queue_manager->thread_count--;
+    queue_manager->total_weight -= thread->weight;
   }
 }
 
@@ -181,8 +185,9 @@ void task_queue_enqueue( task_thread_t* thread ) {
   avl_prepare_node( &thread->queue_node, thread->vruntime );
   // add to tree
   assert( avl_insert_by_node( queue_manager->thread_scheduling_tree, &thread->queue_node ) );
-  // increment count
+  // increment count and weight
   queue_manager->thread_count++;
+  queue_manager->total_weight += thread->weight;
 }
 
 /**
@@ -227,9 +232,14 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
       DEBUG_OUTPUT( "vruntime = %lld\r\n", thread->vruntime )
     #endif
     // inactivity bonus => 1 timer interval
-    const uint64_t bonus = timer_get_interval() * TASK_THREAD_NICE_LEVEL_0 / thread->weight;
+    constexpr uint64_t bonus = 1000000ULL;
     // adjust vruntime
-    thread->vruntime = queue_manager->min_vruntime > bonus ? queue_manager->min_vruntime - bonus : 0;
+    const uint64_t vruntime = queue_manager->min_vruntime > bonus
+      ? queue_manager->min_vruntime - bonus : 0;
+    // adjust only if smaller to ensure that short executes don't take advantage
+    if ( thread->vruntime < vruntime ) {
+      thread->vruntime = vruntime;
+    }
     #if defined( PRINT_PROCESS )
       DEBUG_OUTPUT( "vruntime = %lld\r\n", thread->vruntime )
     #endif

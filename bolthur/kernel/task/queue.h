@@ -32,6 +32,8 @@ typedef struct {
   uint32_t thread_count;
   /** min vruntime */
   uint64_t min_vruntime;
+  /** total weight */
+  uint64_t total_weight;
 } queue_manager_t;
 
 bool task_queue_init( void );

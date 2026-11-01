@@ -45,9 +45,10 @@ uint64_t timer_generate_id( void );
 timer_callback_entry_t* timer_register_callback( task_thread_t*, size_t, uint64_t, bool );
 bool timer_unregister_callback( uint64_t );
 void timer_handle_callback( void );
-void timer_handle_vruntime( uint64_t );
-void timer_increase_vruntime( task_thread_t*, uint64_t );
+void timer_handle_vruntime( void );
+void timer_increase_vruntime( task_thread_t* );
 uint64_t timer_get_current_tick_value( void );
 uint64_t timer_get_elapsed_since_last_interrupt( void );
+uint64_t timer_get_nano_seconds( void );
 
 #endif
