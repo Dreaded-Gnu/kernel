@@ -130,7 +130,7 @@ bool rpc_generic_restore( task_thread_t* thread ) {
   // loop through next
   while ( item ) {
     // get current item
-    rpc_backup_t* tmp = item->data;
+    auto const tmp = ( rpc_backup_t* )( ( uintptr_t )item->data );
     // debug output
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "%d: tmp = %p, tmp->active = %d\r\n", tmp->thread->process->id, ( void* )tmp, tmp->active ? 1 : 0 )
@@ -291,7 +291,7 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
     rpc_backup_t* active = backup->thread->current_active_backup;
     assert( active && active != backup );
     // get current active item
-    list_item_t* active_item = list_lookup_data( backup->thread->process->rpc_queue, active );
+    list_item_t* active_item = list_lookup_data( backup->thread->process->rpc_queue, ( uintptr_t )active );
     // debug output
     #if defined( PRINT_RPC )
       DEBUG_OUTPUT( "active = %#p, active_item = %#p\r\n", active, active_item )
@@ -344,7 +344,7 @@ bool rpc_generic_prepare_invoke( rpc_backup_t* backup ) {
     auto item = backup->thread->process->rpc_queue->first;
     while ( item ) {
       // get backup
-      auto const tmp = ( rpc_backup_t* )item->data;
+      auto const tmp = ( rpc_backup_t* )( ( uintptr_t )item->data );
       // handle not squeezed in
       if ( ! tmp->squeezed_in ) {
         tmp->thread_state = TASK_THREAD_STATE_ACTIVE;

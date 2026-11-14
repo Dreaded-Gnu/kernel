@@ -31,7 +31,7 @@
 list_manager_t* console_list = nullptr;
 
 /**
- * @fn int32_t console_lookup(const list_item_t*, const void*)
+ * @fn int32_t console_lookup(const list_item_t*, const uint64_t)
  * @brief List lookup helper
  *
  * @param a
@@ -40,10 +40,10 @@ list_manager_t* console_list = nullptr;
  */
 static int32_t console_lookup(
   const list_item_t* a,
-  const void* data
+  const uint64_t data
 ) {
-  console_t* console = a->data;
-  return strcmp( console->path, data );
+  auto const console = ( console_t* )( ( uintptr_t )a->data );
+  return strcmp( console->path, ( char* )( ( uintptr_t )data ) );
 }
 
 /**
@@ -53,7 +53,7 @@ static int32_t console_lookup(
  * @param a
  */
 static void console_cleanup( list_item_t* a ) {
-  console_t* console = a->data;
+  auto const console = ( console_t* )( ( uintptr_t )a->data );
   // destroy console
   console_destroy( console );
   // default cleanup

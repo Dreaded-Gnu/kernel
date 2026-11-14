@@ -20,17 +20,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include "list.h"
 
 /**
- * @fn int32_t list_default_lookup(const list_item_t*, const void*)
+ * @fn int32_t list_default_lookup(const list_item_t*, const uint64_t)
  * @brief Default lookup if not passed during creation
  *
  * @param a
  * @param b
  * @return int32_t
  */
-int32_t list_default_lookup( const list_item_t* a, const void* b ) {
+int32_t list_default_lookup( const list_item_t* a, const uint64_t b ) {
   return a->data == b ? 0 : 1;
 }
 
@@ -46,14 +47,14 @@ void list_default_cleanup( list_item_t* a ) {
 }
 
 /**
- * @fn bool list_default_insert(list_manager_t*, void*)
+ * @fn bool list_default_insert(list_manager_t*, uint64_t)
  * @brief Default insert callback
  *
  * @param list
  * @param data
  * @return
  */
-bool list_default_insert( list_manager_t* list, void* data ) {
+bool list_default_insert( list_manager_t* list, const uint64_t data ) {
   return list_push_back_data( list, data );
 }
 
@@ -67,9 +68,9 @@ bool list_default_insert( list_manager_t* list, void* data ) {
  * @return list_manager_t* pointer to created list
  */
 list_manager_t* list_construct(
-  list_lookup_func_t lookup,
-  list_cleanup_func_t cleanup,
-  list_insert_func_t insert
+  const list_lookup_func_t lookup,
+  const list_cleanup_func_t cleanup,
+  const list_insert_func_t insert
 ) {
   // allocate list
   list_manager_t* list = malloc( sizeof( list_manager_t ) );
@@ -161,14 +162,14 @@ bool list_empty( list_manager_t* list ) {
 }
 
 /**
- * @fn list_item_t list_lookup_data*(list_manager_t*, void*)
+ * @fn list_item_t list_lookup_data*(list_manager_t*, uint64_t)
  * @brief Search a list item by data
  *
  * @param list list to lookup
  * @param data data to find
  * @return list_item_t*
  */
-list_item_t* list_lookup_data( list_manager_t* list, void* data ) {
+list_item_t* list_lookup_data( list_manager_t* list, uint64_t data ) {
   // check parameter
   if ( !list ) {
     return nullptr;
@@ -221,13 +222,13 @@ list_item_t* list_lookup_item( list_manager_t* list, const list_item_t* item ) {
 }
 
 /**
- * @fn list_item_t list_item_create*(void*)
+ * @fn list_item_t list_item_create*(uint64_t)
  * @brief Helper for creating a list node
  *
  * @param data data to populate
  * @return list_item_t* pointer to created node
  */
-list_item_t* list_item_create( void* data ) {
+list_item_t* list_item_create( uint64_t data ) {
   // allocate new node
   list_item_t* node = malloc( sizeof( list_item_t ) );
   // check malloc result
@@ -247,12 +248,12 @@ list_item_t* list_item_create( void* data ) {
  * @brief Method to get element from list like pop without removal
  *
  * @param list list to use
- * @return void* data of first element or nullptr if empty
+ * @return uint64_t data of first element or nullptr if empty
  */
-void* list_peek_front_data( list_manager_t* list ) {
+uint64_t list_peek_front_data( list_manager_t* list ) {
   // handle invalid parameter or empty
   if ( ! list || ! list->first ) {
-    return nullptr;
+    return LIST_INVALID_DATA;
   }
   // return first element data
   return list->first->data;
@@ -263,18 +264,18 @@ void* list_peek_front_data( list_manager_t* list ) {
  * @brief Method to get element from list like pop without removal
  *
  * @param list list to use
- * @return void* data of first element or nullptr if empty
+ * @return uint64_t data of first element or nullptr if empty
  */
-void* list_peek_back_data( list_manager_t* list ) {
+uint64_t list_peek_back_data( list_manager_t* list ) {
   // check parameter
-  if ( !list ) {
-    return nullptr;
+  if ( ! list ) {
+    return LIST_INVALID_DATA;
   }
   // get last element
   list_item_t* last = list->last;
   // handle empty list
-  if ( !last ) {
-    return nullptr;
+  if ( ! last ) {
+    return LIST_INVALID_DATA;
   }
   // return data of first element
   return last->data;
@@ -285,23 +286,23 @@ void* list_peek_back_data( list_manager_t* list ) {
  * @brief Method to pop element from list
  *
  * @param list list to use
- * @return void* data of first element or nullptr if empty
+ * @return uint64_t data of first element or nullptr if empty
  */
-void* list_pop_front_data( list_manager_t* list ) {
+uint64_t list_pop_front_data( list_manager_t* list ) {
   // check parameter
-  if ( !list ) {
-    return nullptr;
+  if ( ! list ) {
+    return LIST_INVALID_DATA;
   }
   // get first element
   list_item_t* first = list->first;
 
   // handle empty list
-  if ( !first ) {
-    return nullptr;
+  if ( ! first ) {
+    return LIST_INVALID_DATA;
   }
 
   // cache data of first element
-  void* data = first->data;
+  const uint64_t data = first->data;
   // change previous of next element if existing
   if ( first->next ) {
     // change previous
@@ -326,23 +327,23 @@ void* list_pop_front_data( list_manager_t* list ) {
  * @brief Method to pop element from list
  *
  * @param list list to use
- * @return void* data of first element or nullptr if empty
+ * @return uint64_t data of first element or nullptr if empty
  */
-void* list_pop_back_data( list_manager_t* list ) {
+uint64_t list_pop_back_data( list_manager_t* list ) {
   // check parameter
-  if ( !list ) {
-    return nullptr;
+  if ( ! list ) {
+    return LIST_INVALID_DATA;
   }
   // get last element
   list_item_t* last = list->last;
 
   // handle empty list
-  if ( !last ) {
-    return nullptr;
+  if ( ! last ) {
+    return LIST_INVALID_DATA;
   }
 
   // cache data of first element
-  void* data = last->data;
+  const uint64_t data = last->data;
   // change next of previous element if existing
   if ( last->previous ) {
     // change previous
@@ -378,14 +379,14 @@ void list_print( list_manager_t* list ) {
 
   // loop through list until end
   while ( current ) {
-    printf( "list->data = %p\r\n", current->data );
+    printf( "list->data = %"PRIu64"\r\n", current->data );
     // get next element
     current = current->next;
   }
 }
 
 /**
- * @fn list_item_t* list_push_front_data(list_manager_t*, void*)
+ * @fn list_item_t* list_push_front_data(list_manager_t*, uint64_t)
  * @brief Method to push node with data into list
  *
  * @param list list to use
@@ -393,7 +394,7 @@ void list_print( list_manager_t* list ) {
  * @return true
  * @return false
  */
-list_item_t* list_push_front_data( list_manager_t* list, void* data ) {
+list_item_t* list_push_front_data( list_manager_t* list, uint64_t data ) {
   // handle invalid parameter
   if ( ! list || ! data ) {
     return nullptr;
@@ -422,14 +423,14 @@ list_item_t* list_push_front_data( list_manager_t* list, void* data ) {
 }
 
 /**
- * @fn list_item_t* list_push_back_data(list_manager_t*, void*)
+ * @fn list_item_t* list_push_back_data(list_manager_t*, uint64_t)
  * @brief Method to push node with data into list
  *
  * @param list list to use
  * @param data data to push into list
  * @return
  */
-list_item_t* list_push_back_data( list_manager_t* list, void* data ) {
+list_item_t* list_push_back_data( list_manager_t* list, uint64_t data ) {
   // handle invalid parameter
   if ( !list || !data ) {
     return nullptr;
@@ -456,14 +457,14 @@ list_item_t* list_push_back_data( list_manager_t* list, void* data ) {
 }
 
 /**
- * @fn bool list_push_after_data(struct list_manager*, void*, void*)
+ * @fn bool list_push_after_data(struct list_manager*, uint64_t, uint64_t)
  * @brief Function to insert data after data element if found
  * @param list list to manipulate
  * @param after data where new data shall be added as next
  * @param data data to be added
  * @return
  */
-bool list_push_after_data( struct list_manager* list, void* after, void* data ) {
+bool list_push_after_data( struct list_manager* list, uint64_t after, uint64_t data ) {
   // handle invalid parameter
   if ( ! list || ! data || ! after ) {
     return false;
@@ -587,7 +588,7 @@ bool list_remove_item( list_manager_t* list, list_item_t* item, const bool clean
 }
 
 /**
- * @fn bool list_remove_data(list_manager_t*, void*, bool)
+ * @fn bool list_remove_data(list_manager_t*, uint64_t, bool)
  * @brief Remove list item
  *
  * @param list
@@ -596,7 +597,7 @@ bool list_remove_item( list_manager_t* list, list_item_t* item, const bool clean
  * @return true
  * @return false
  */
-bool list_remove_data( list_manager_t* list, void* data, const bool cleanup ) {
+bool list_remove_data( list_manager_t* list, uint64_t data, const bool cleanup ) {
   // handle invalid parameter
   if ( !list || !data ) {
     return false;
@@ -621,19 +622,19 @@ bool list_remove_data( list_manager_t* list, void* data, const bool cleanup ) {
 }
 
 /**
- * @fn bool list_insert_data(list_manager_t*, void*)
+ * @fn bool list_insert_data(list_manager_t*, uint64_t)
  * @brief Insert data with insert callback
  *
  * @param list
  * @param data
  * @return
  */
-bool list_insert_data( list_manager_t* list, void* data ) {
+bool list_insert_data( list_manager_t* list, uint64_t data ) {
   return list->insert( list, data );
 }
 
 /**
- * @fn list_item_t* list_insert_data_before(list_manager_t*, list_item_t*, void*)
+ * @fn list_item_t* list_insert_data_before(list_manager_t*, list_item_t*, uint64_t)
  * @brief Insert data before item
  *
  * @param list
@@ -644,7 +645,7 @@ bool list_insert_data( list_manager_t* list, void* data ) {
 list_item_t* list_insert_data_before(
   list_manager_t* list,
   list_item_t* item,
-  void* data
+  uint64_t data
 ) {
   // handle item is first one
   if ( list->first == item ) {

@@ -210,8 +210,8 @@ void task_queue_enqueue_blocked( task_thread_t* thread ) {
     DEBUG_OUTPUT( "Blocking %d from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
   #endif
   // push to blocked
-  if ( ! list_lookup_data( queue_manager->thread_wait_queue, thread ) ) {
-    assert( list_push_back_data( queue_manager->thread_wait_queue, thread ) );
+  if ( ! list_lookup_data( queue_manager->thread_wait_queue, ( uintptr_t )thread ) ) {
+    assert( list_push_back_data( queue_manager->thread_wait_queue, ( uintptr_t )thread ) );
   }
   // remove from scheduling tree
   if ( task_thread_current_thread != thread ) {
@@ -229,7 +229,7 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
     return;
   }
   // remove from blocked list
-  const bool removal_result = list_remove_data( queue_manager->thread_wait_queue, thread, true );
+  const bool removal_result = list_remove_data( queue_manager->thread_wait_queue, ( uintptr_t )thread, true );
   // debug output if removal failed
   #if defined( PRINT_PROCESS )
     if ( ! removal_result ) {

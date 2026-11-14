@@ -419,7 +419,7 @@ void syscall_rpc_ret( void* context ) {
       // loop until usable thread has been found
       while ( current && ! target ) {
         // get thread
-        auto const tmp = ( task_thread_t* )current->data;
+        auto const tmp = ( task_thread_t* )( ( uintptr_t )current->data );
         // FIXME: CHECK IF ACTIVE
         target = tmp;
         // get next thread

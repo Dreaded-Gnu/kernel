@@ -139,7 +139,7 @@ void syscall_rpc_set_ready( void* context ) {
   // unblock child which might wait for process to be rpc ready!
   auto current = task_queue_get_first_blocked();
   while ( current ) {
-    auto const t = ( task_thread_t* )current->data;
+    auto const t = ( task_thread_t* )( ( uintptr_t )current->data );
     auto const next = current->next;
     if ( t->process->parent == process->id ) {
       task_unblock_threads(

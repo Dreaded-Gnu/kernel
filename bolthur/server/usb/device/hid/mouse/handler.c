@@ -25,7 +25,7 @@
 static list_manager_t* management_list;
 
 /**
- * @fn int32_t lookup_container(const avl_node_t*, const void*)
+ * @fn int32_t lookup_container(const list_item_t*, const uint64_t)
  * @brief Lookup handle callback necessary for avl tree search operations
  *
  * @param node
@@ -34,7 +34,7 @@ static list_manager_t* management_list;
  */
 static int32_t lookup_container(
   const list_item_t* node,
-  const void* value
+  const uint64_t value
 ) {
   auto const type = ( pid_t )value;
   auto const node_type = ( pid_t )node->data;
@@ -78,13 +78,13 @@ int handler_register( const pid_t handler ) {
     return EINVAL;
   }
   // try to find
-  const list_item_t* found = list_lookup_data( management_list, ( void* )handler );
+  const list_item_t* found = list_lookup_data( management_list, ( uint64_t )handler );
   // handle found
   if ( found ) {
     return EINVAL;
   }
   // insert into tree
-  if ( ! list_insert_data( management_list, ( void* )handler ) ) {
+  if ( ! list_insert_data( management_list, ( uint64_t )handler ) ) {
     return EAGAIN;
   }
   // return success
@@ -103,7 +103,7 @@ int handler_unregister( const pid_t handler ) {
     return EINVAL;
   }
   // try to find
-  list_item_t* found = list_lookup_data( management_list, ( void* )handler );
+  list_item_t* found = list_lookup_data( management_list, ( uint64_t )handler );
   // handle found
   if ( ! found ) {
     return 0;

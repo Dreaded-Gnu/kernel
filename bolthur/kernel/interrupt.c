@@ -394,37 +394,40 @@ void interrupt_handle( const size_t num, const interrupt_type_t type, void* cont
   // bound external handler
   if ( block->external ) {
     // take first thread
-    task_thread_t* thread = list_peek_front_data( block->external->thread_list );
-    // debug output
-    #if defined( PRINT_INTERRUPT )
-      DEBUG_OUTPUT( "Raising interrupt handler %zu for %d\r\n",
-        num, thread->process->id )
-    #endif
-    // try to raise rpc without data
-    const rpc_backup_t* rpc = rpc_generic_raise(
-      thread,
-      block->external,
-      num,
-      nullptr,
-      0,
-      thread,
-      false,
-      0,
-      true,
-      true,
-      false
-    );
-    // handle error by skip
-    if ( rpc ) {
-      // get origin
-      const event_origin_t origin = event_determine_origin( context );
-      // set task to switch to in case it's a different thread
-      if ( task_thread_current_thread != rpc->thread ) {
-        task_thread_try_switch_to = rpc->thread;
-      }
-      // in case we're executed from user and thread is not current thread trigger process
-      if ( EVENT_ORIGIN_USER == origin && rpc->thread != task_thread_current_thread ) {
-        event_enqueue( EVENT_PROCESS );
+    const uint64_t front_value = list_peek_front_data( block->external->thread_list );
+    if ( LIST_INVALID_DATA != front_value ) {
+      auto const thread = ( task_thread_t* )( ( uintptr_t )front_value );
+      // debug output
+      #if defined( PRINT_INTERRUPT )
+        DEBUG_OUTPUT( "Raising interrupt handler %zu for %d\r\n",
+          num, thread->process->id )
+      #endif
+      // try to raise rpc without data
+      const rpc_backup_t* rpc = rpc_generic_raise(
+        thread,
+        block->external,
+        num,
+        nullptr,
+        0,
+        thread,
+        false,
+        0,
+        true,
+        true,
+        false
+      );
+      // handle error by skip
+      if ( rpc ) {
+        // get origin
+        const event_origin_t origin = event_determine_origin( context );
+        // set task to switch to in case it's a different thread
+        if ( task_thread_current_thread != rpc->thread ) {
+          task_thread_try_switch_to = rpc->thread;
+        }
+        // in case we're executed from user and thread is not current thread trigger process
+        if ( EVENT_ORIGIN_USER == origin && rpc->thread != task_thread_current_thread ) {
+          event_enqueue( EVENT_PROCESS );
+        }
       }
     }
   }

@@ -64,8 +64,7 @@ debug_breakpoint_entry_t* debug_breakpoint_find( uintptr_t address ) {
   // loop through list of entries
   while ( current ) {
     // get entry value
-    debug_breakpoint_entry_t* entry =
-      ( debug_breakpoint_entry_t* )current->data;
+    auto const entry = ( debug_breakpoint_entry_t* )( ( uintptr_t )current->data );
     // check for match
     if ( entry->address == address ) {
       return entry;
@@ -95,7 +94,7 @@ bool debug_breakpoint_remove_step( void ) {
   // loop through list of entries
   while ( current ) {
     // get entry value
-    debug_breakpoint_entry_t* entry = ( debug_breakpoint_entry_t* )current->data;
+    auto const entry = ( debug_breakpoint_entry_t* )( ( uintptr_t )current->data );
     // next entry
     list_item_t* next = current->next;
     // handle only stepping breakpoints
@@ -134,7 +133,7 @@ bool debug_breakpoint_remove( uintptr_t address, bool remove ) {
   entry->enabled = false;
   // handle removal
   if ( remove ) {
-    list_item_t* item = list_lookup_data( debug_breakpoint_manager, entry );
+    list_item_t* item = list_lookup_data( debug_breakpoint_manager, ( uintptr_t )entry );
     if ( ! item ) {
       return false;
     }
@@ -181,7 +180,7 @@ bool debug_breakpoint_add(
     // erase memory
     debug_memset( ( void* )entry, 0, sizeof( debug_breakpoint_entry_t ) );
     // push entry back
-    if ( ! list_push_back_data( debug_breakpoint_manager, ( void* )entry ) ) {
+    if ( ! list_push_back_data( debug_breakpoint_manager, ( uintptr_t )entry ) ) {
       free( entry );
       return false;
     }
@@ -212,8 +211,7 @@ void debug_breakpoint_disable( void ) {
   // loop through list of entries
   while ( current ) {
     // get entry value
-    debug_breakpoint_entry_t* entry =
-      ( debug_breakpoint_entry_t* )current->data;
+    auto const entry = ( debug_breakpoint_entry_t* )( ( uintptr_t )current->data );
     // replace instruction if enabled
     if ( entry->enabled ) {
       // push back instruction
@@ -251,8 +249,7 @@ void debug_breakpoint_enable( void ) {
   // loop through list of entries
   while ( current ) {
     // get entry value
-    debug_breakpoint_entry_t* entry =
-      ( debug_breakpoint_entry_t* )current->data;
+    auto const entry = ( debug_breakpoint_entry_t* )( ( uintptr_t )current->data );
     // replace instruction if enabled
     if ( entry->enabled ) {
       // save instruction

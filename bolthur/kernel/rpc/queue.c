@@ -36,7 +36,7 @@
 void rpc_queue_cleanup( list_item_t* item ) {
   if ( item->data ) {
     // delete data
-    rpc_backup_destroy( item->data );
+    rpc_backup_destroy( ( void* )( ( uintptr_t )item->data ) );
   }
   // continue with default list cleanup
   list_default_cleanup( item );

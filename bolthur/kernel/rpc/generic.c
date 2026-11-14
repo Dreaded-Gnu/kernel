@@ -362,7 +362,7 @@ rpc_backup_t* rpc_generic_raise(
         DEBUG_OUTPUT( "Error while allocating rpc info object\r\n" )
       #endif
       // remove from list with cleanup
-      list_remove_data( backup->thread->process->rpc_queue, backup, true );
+      list_remove_data( backup->thread->process->rpc_queue, ( uintptr_t )backup, true );
       return nullptr;
     }
     // prepare structure
@@ -381,7 +381,7 @@ rpc_backup_t* rpc_generic_raise(
       #endif
       free( rpc_info );
       // remove from list with cleanup
-      list_remove_data( backup->thread->process->rpc_queue, backup, true );
+      list_remove_data( backup->thread->process->rpc_queue, ( uintptr_t )backup, true );
       return nullptr;
     }
   }
@@ -392,7 +392,7 @@ rpc_backup_t* rpc_generic_raise(
       DEBUG_OUTPUT( "Error while preparing target %d\r\n", target->id )
     #endif
     // remove from list with cleanup
-    list_remove_data( backup->thread->process->rpc_queue, backup, true );
+    list_remove_data( backup->thread->process->rpc_queue, ( uintptr_t )backup, true );
     // skip if error occurred during rpc invoke
     return nullptr;
   }

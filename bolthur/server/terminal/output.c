@@ -100,7 +100,7 @@ void output_handle_out(
   // get terminal
   list_item_t* found = list_lookup_data(
     terminal_list,
-    terminal->terminal
+    ( uintptr_t )terminal->terminal
   );
   if ( ! found ) {
     #if defined( TERMINAL_ENABLE_OUTPUT )
@@ -123,7 +123,7 @@ void output_handle_out(
     return;
   }
   // render
-  const int result = render_terminal( found->data, shm_addr );
+  const int result = render_terminal( ( terminal_t* )( ( uintptr_t )found->data ), shm_addr );
   if ( result != 0 ) {
     #if defined( TERMINAL_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "unable to render terminal\r\n" )
@@ -199,7 +199,7 @@ void output_handle_err(
   // get terminal
   list_item_t* found = list_lookup_data(
     terminal_list,
-    terminal->terminal
+    ( uintptr_t )terminal->terminal
   );
   if ( ! found ) {
     #if defined( TERMINAL_ENABLE_OUTPUT )
@@ -222,7 +222,7 @@ void output_handle_err(
     return;
   }
   // render
-  const int result = render_terminal( found->data, shm_addr );
+  const int result = render_terminal( ( terminal_t* )( ( uintptr_t )found->data ), shm_addr );
   if ( result != 0 ) {
     #if defined( TERMINAL_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "unable to render terminal\r\n" )

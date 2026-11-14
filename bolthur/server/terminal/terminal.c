@@ -42,14 +42,14 @@ framebuffer_surface_allocate_t surface_data = {
 };
 
 /**
- * @fn int32_t terminal_lookup(const list_item_t*, const void*)
+ * @fn int32_t terminal_lookup(const list_item_t*, const uint64_t)
  * @brief List lookup helper
  * @param a
  * @param data
  * @return
  */
-static int32_t terminal_lookup( const list_item_t* a, const void* data ) {
-  return strcmp( ( ( terminal_t* )a->data )->path, data );
+static int32_t terminal_lookup( const list_item_t* a, const uint64_t data ) {
+  return strcmp( ( ( terminal_t* )( ( uintptr_t )a->data ) )->path, ( char* )( ( uintptr_t )data ) );
 }
 
 /**
@@ -58,7 +58,7 @@ static int32_t terminal_lookup( const list_item_t* a, const void* data ) {
  * @param a
  */
 static void terminal_cleanup( list_item_t* a ) {
-  auto const term = ( terminal_t* )a->data;
+  auto const term = ( terminal_t* )( ( uintptr_t )a->data );
   // destroy circular buffer
   buffer_destroy( &term->buffer );
   // default cleanup
@@ -206,7 +206,7 @@ bool terminal_init( void ) {
     // init ring buffer
     buffer_init( &term->buffer, term->max_row, term->max_col );
     // push back
-    if ( ! list_push_back_data( terminal_list, term ) ) {
+    if ( ! list_push_back_data( terminal_list, ( uintptr_t )term ) ) {
       free( tty_path );
       free( term );
       free( command_add );

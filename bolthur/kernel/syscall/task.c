@@ -350,7 +350,7 @@ void syscall_thread_nice_level( void* context ) {
   task_thread_t* thread = nullptr;
   auto current = proc->thread_list->first;
   while ( current ) {
-    auto const current_thread = ( task_thread_t* )current->data;
+    auto const current_thread = ( task_thread_t* )( ( uintptr_t )current->data );
     if ( current_thread->id == tid ) {
       thread = current_thread;
     }

@@ -61,7 +61,7 @@ void rpc_custom_handle_console_select(
   // allocate for data fetching
   auto const command = ( console_command_select_t* )request->container;
   // try to lookup by name
-  list_item_t* found = list_lookup_data( console_list, command->path );
+  list_item_t* found = list_lookup_data( console_list, ( uintptr_t )command->path );
   // handle already existing
   if ( ! found ) {
     free( request );
@@ -75,7 +75,7 @@ void rpc_custom_handle_console_select(
     console->active = false;
   }
   // activate found console
-  console = found->data;
+  console = ( console_t* )( ( uintptr_t )found->data );
   console->active = true;
   // free all used temporary structures
   free( request );

@@ -66,7 +66,7 @@ rpc_backup_t* rpc_backup_create(
     // loop until usable thread has been found
     while ( current && ! thread ) {
       // get thread
-      auto const tmp = ( task_thread_t* )current->data;
+      auto const tmp = ( task_thread_t* )( ( uintptr_t )current->data );
       // FIXME: CHECK IF ACTIVE
       thread = tmp;
       // get next thread
@@ -232,7 +232,7 @@ rpc_backup_t* rpc_backup_create(
     DEBUG_OUTPUT( "Pushing backup object to rpc queue!\r\n" )
   #endif
   // push back backup to queue
-  list_item_t* item = list_push_back_data( thread->process->rpc_queue, backup );
+  list_item_t* item = list_push_back_data( thread->process->rpc_queue, ( uintptr_t )backup );
   if ( ! item ) {
     rpc_backup_destroy( backup );
     return nullptr;

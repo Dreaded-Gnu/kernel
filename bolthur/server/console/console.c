@@ -54,7 +54,7 @@ void console_destroy( console_t* console ) {
 console_t* console_get_active( void ) {
   const list_item_t* current = console_list->first;
   while ( current ) {
-    console_t* found = current->data;
+    auto const found = ( console_t* )( ( uintptr_t )current->data );
     if ( found->active ) {
       return found;
     }
@@ -73,7 +73,7 @@ console_t* console_get_active( void ) {
 console_t* console_get_by_path( const char* path ) {
   const list_item_t* current = console_list->first;
   while ( current ) {
-    console_t* found = current->data;
+    auto const found = ( console_t* )( ( uintptr_t )current->data );
     if ( 0 == strcmp( found->path, path ) ) {
       return found;
     }

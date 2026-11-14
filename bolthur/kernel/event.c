@@ -181,7 +181,7 @@ bool event_bind( const event_type_t type, const event_callback_t callback, const
   // loop through list for check callback
   while ( current ) {
     // get callback from data
-    auto wrapper = ( event_callback_wrapper_t* )current->data;
+    auto wrapper = ( event_callback_wrapper_t* )( ( uintptr_t )current->data );
     // debug output
     #if defined( PRINT_EVENT )
       DEBUG_OUTPUT( "Check bound callback at %p\r\n", wrapper )
@@ -218,7 +218,7 @@ bool event_bind( const event_type_t type, const event_callback_t callback, const
     true != post
       ? block->handler
       : block->post,
-    ( void* )wrapper );
+    ( uintptr_t )wrapper );
 }
 
 /**
@@ -308,7 +308,7 @@ void event_handle( void* data ) {
     // loop through list
     while ( current ) {
       // get callback from data
-      auto const wrapper = ( event_callback_wrapper_t* )current->data;
+      auto const wrapper = ( event_callback_wrapper_t* )( ( uintptr_t )current->data );
       // debug output
       #if defined( PRINT_EVENT )
         DEBUG_OUTPUT( "Executing bound callback %p\r\n", wrapper )
@@ -343,7 +343,7 @@ void event_handle( void* data ) {
     // loop through list
     while ( current ) {
       // get callback from data
-      auto const wrapper = ( event_callback_wrapper_t* )current->data;
+      auto const wrapper = ( event_callback_wrapper_t* )( ( uintptr_t )current->data );
       // debug output
       #if defined( PRINT_EVENT )
         DEBUG_OUTPUT( "Executing bound post callback %p\r\n", wrapper )

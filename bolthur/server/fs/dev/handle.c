@@ -41,7 +41,7 @@ static void destroy_device( device_handle_t* device ) {
 }
 
 /**
- * @fn int32_t console_lookup(const list_item_t*, const void*)
+ * @fn int32_t console_lookup(const list_item_t*, const uint64_t)
  * @brief List lookup helper
  *
  * @param a
@@ -50,22 +50,22 @@ static void destroy_device( device_handle_t* device ) {
  */
 static int32_t handle_lookup(
   const list_item_t* a,
-  const void* data
+  const uint64_t data
 ) {
-  device_handle_t* device = a->data;
-  const device_handle_t* tmp = data;
+  auto const device = ( device_handle_t* )( ( uintptr_t )a->data );
+  auto const tmp = ( const device_handle_t* )( ( uintptr_t )data );
   return strcmp( device->path, tmp->path );
 }
 
 /**
- * @fn bool handle_insert(list_manager_t*, void*)
+ * @fn bool handle_insert(list_manager_t*, uint64_t)
  * @brief Device insert callback
  *
  * @param list
  * @param data
  * @return
  */
-static bool handle_insert( list_manager_t* list, void* data ) {
+static bool handle_insert( list_manager_t* list, uint64_t data ) {
   // loop until there is a matching point
   list_item_t* item = list->first;
   while ( item && 0 > handle_lookup( item, data ) ) {
@@ -86,7 +86,7 @@ static bool handle_insert( list_manager_t* list, void* data ) {
  * @param a
  */
 static void handle_cleanup( list_item_t* a ) {
-  destroy_device( a->data );
+  destroy_device( ( void* )( ( uintptr_t )a->data ) );
   list_default_cleanup( a );
 }
 
@@ -128,25 +128,25 @@ device_handle_t* handle_get_by_path( const char* path ) {
     return nullptr;
   }
   // look up
-  list_item_t* item = list_lookup_data( device_list, device );
+  const list_item_t* item = list_lookup_data( device_list, ( uintptr_t )device );
   // destroy temporary device
   destroy_device( device );
   // return result
-  return item ? item->data : nullptr;
+  return item ? ( device_handle_t* )( ( uintptr_t )item->data ) : nullptr;
 }
 
 /**
  * @fn device_handle_t* handle_get_by_id(const char*)
  * @brief Method to get device by path
  *
- * @param name
+ * @param id
  * @return
  */
-device_handle_t* handle_get_by_id( pid_t id ) {
-  list_item_t* item = device_list->first;
+device_handle_t* handle_get_by_id( const pid_t id ) {
+  auto item = device_list->first;
   while ( item ) {
     // check for matching id
-    device_handle_t* possible = item->data;
+    auto const possible = ( device_handle_t* )( ( uintptr_t )item->data );
     if ( possible->process == id ) {
       break;
     }
@@ -154,7 +154,7 @@ device_handle_t* handle_get_by_id( pid_t id ) {
     item = item->next;
   }
   // return found item or nullptr
-  return item ? item->data : nullptr;
+  return item ? ( device_handle_t* )( ( uintptr_t )item->data ) : nullptr;
 }
 
 /**
@@ -187,7 +187,7 @@ bool handle_add( const char* path, struct stat info, pid_t process ) {
   device->process = process;
   memcpy( &device->info, &info, sizeof( info ) );
   // try to insert
-  if ( ! list_insert_data( device_list, device ) ) {
+  if ( ! list_insert_data( device_list, ( uintptr_t )device ) ) {
     destroy_device( device );
     return false;
   }

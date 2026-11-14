@@ -23,7 +23,6 @@
 #include "lib/inttypes.h"
 #include "timer.h"
 #include "../library/collection/list/list.h"
-#include "rpc/backup.h"
 #include "rpc/generic.h"
 #include "debug/debug.h"
 #include "lib/stdint.h"
@@ -47,7 +46,7 @@ uint64_t timer_generate_id( void ) {
 }
 
 /**
- * @fn bool timer_insert(list_manager_t*, void*)
+ * @fn bool timer_insert(list_manager_t*, const uint64_t)
  * @brief Timer insert callback
  * @param list
  * @param data
@@ -55,18 +54,18 @@ uint64_t timer_generate_id( void ) {
  */
 static bool timer_insert(
   list_manager_t* list,
-  void* data
+  const uint64_t data
 ) {
   // push back if empty
   if ( list_empty( list ) ) {
     return list_push_back_data( list, data );
   }
   // get entry to add
-  auto const entry_to_add = ( timer_callback_entry_t* )data;
+  auto const entry_to_add = ( timer_callback_entry_t* )( ( uintptr_t )data );
   list_item_t* item = list->first;
   while ( item ) {
     // get pointer to current entry
-    auto const entry = ( timer_callback_entry_t* )item->data;
+    auto const entry = ( timer_callback_entry_t* )( ( uintptr_t )item->data );
     // debug output
     #if defined( PRINT_TIMER )
       DEBUG_OUTPUT(
@@ -100,31 +99,28 @@ static bool timer_insert(
  */
 static void timer_cleanup( list_item_t* item ) {
   // clear possible thread reference
-  const timer_callback_entry_t* entry = item->data;
+  auto const entry = ( const timer_callback_entry_t* )( ( uintptr_t )item->data );
   if ( entry->interruptable ) {
     entry->thread->interruptable_sleep_timer = nullptr;
   }
   // free if data is valid
   if ( item->data ) {
-    free( item->data );
+    free( ( void* )( ( uintptr_t )item->data ) );
   }
   // continue with default list cleanup
   list_default_cleanup( item );
 }
 
 /**
- * @fn int32_t timer_lookup(const list_item_t*, const void*)
+ * @fn int32_t timer_lookup(const list_item_t*, const uint64_t)
  * @brief lookup a timer
  * @param a
  * @param data
  * @return
  */
-static int32_t timer_lookup(
-  const list_item_t* a,
-  const void* data
-) {
-  const timer_callback_entry_t* entry = a->data;
-  return entry->id == ( size_t )data ? 0 : 1;
+static int32_t timer_lookup( const list_item_t* a, const uint64_t data ) {
+  auto const entry = ( const timer_callback_entry_t* )( ( uintptr_t )a->data );
+  return entry->id == data ? 0 : 1;
 }
 
 /**
@@ -169,7 +165,7 @@ timer_callback_entry_t* timer_register_callback(
   // generate id
   entry->id = timer_generate_id();
   // insert into ordered list
-  if ( ! list_insert_data( timer_list, entry ) ) {
+  if ( ! list_insert_data( timer_list, ( uintptr_t )entry ) ) {
     #if defined( PRINT_TIMER )
       DEBUG_OUTPUT( "Timer insert failed!\r\n" )
     #endif
@@ -189,16 +185,15 @@ timer_callback_entry_t* timer_register_callback(
  * @brief Unregister timer callback by id
  * @param id
  * @return
- * @todo fix id casting
  */
 bool timer_unregister_callback( const uint64_t id ) {
   // try to find item
-  list_item_t* item = list_lookup_data( timer_list, ( void* )( ( uint32_t )id ) );
+  list_item_t* item = list_lookup_data( timer_list, id );
   if ( ! item ) {
     return true;
   }
   // handle interruptable
-  const timer_callback_entry_t* entry = item->data;
+  auto const entry = ( const timer_callback_entry_t* )( ( uintptr_t )item->data );
   if ( entry->interruptable ) {
     entry->thread->interruptable_sleep_timer = nullptr;
   }
@@ -273,7 +268,7 @@ void timer_handle_callback( void ) {
   list_item_t* current = timer_list->first;
   // loop through handles
   while( current ) {
-    auto const entry = ( timer_callback_entry_t* )current->data;
+    auto const entry = ( timer_callback_entry_t* )( ( uintptr_t )current->data );
     // debug output
     #if defined( PRINT_TIMER )
       DEBUG_OUTPUT( "id = %zu, tick = %zu, entry->expire = %zu, handled = %d\r\n",

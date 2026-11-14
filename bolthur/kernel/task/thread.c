@@ -56,15 +56,15 @@ const uint32_t task_thread_priority_weight[ 40 ] = {
 };
 
 /**
- * @fn int32_t thread_compare_id_callback(const avl_node_t*, const avl_node_t*)
+ * @fn int32_t thread_compare_id_callback(const avl_node_t*, const uint64_t)
  * @brief Helper necessary for thread manager list
  *
  * @param a node a
  * @param b node b
  * @return
  */
-static int32_t thread_compare_id_callback( const list_item_t* a, const void* b ) {
-  auto const thread = ( task_thread_t* )a->data;
+static int32_t thread_compare_id_callback( const list_item_t* a, const uint64_t b ) {
+  auto const thread = ( task_thread_t* )( ( uintptr_t )a->data );
   if ( thread->id == ( pid_t )b ) {
     return 0;
   }
@@ -81,7 +81,7 @@ static int32_t thread_compare_id_callback( const list_item_t* a, const void* b )
  */
 static void thread_destroy_callback( list_item_t* node ) {
   // get thread and context
-  auto const thread = ( task_thread_t* )node->data;
+  auto const thread = ( task_thread_t* )( ( uintptr_t )node->data );
   const task_process_t* proc = thread->process;
   virt_context_t* ctx = proc->virtual_context;
   // debug output
@@ -249,7 +249,7 @@ void task_thread_kill( task_thread_t* thread, const bool schedule ) {
   #endif
   // set thread state and push thread to clean up list
   task_thread_set_state( thread, TASK_THREAD_STATE_KILL );
-  list_push_back_data( process_manager->thread_to_cleanup, thread->process );
+  list_push_back_data( process_manager->thread_to_cleanup, ( uintptr_t )thread->process );
   // trigger schedule if necessary
   if ( schedule ) {
     event_enqueue( EVENT_PROCESS );
@@ -275,7 +275,7 @@ void task_thread_cleanup(
   // loop
   while ( current ) {
     // get process from item
-    auto const thread = ( task_thread_t* )current->data;
+    auto const thread = ( task_thread_t* )( ( uintptr_t )current->data );
     // skip running
     if ( thread->state != TASK_THREAD_STATE_KILL ) {
       continue;
@@ -294,16 +294,16 @@ void task_thread_cleanup(
     current = current->next;
     // remove node from tree and cleanup
     task_process_t* process = thread->process;
-    list_remove_data( process->thread_list, thread, true );
+    list_remove_data( process->thread_list, ( uintptr_t )thread, true );
     // check if threads are empty
     if ( ! process->thread_list->first ) {
       list_item_t* match = list_lookup_data
         ( process_manager->process_to_cleanup,
-        ( void* )process->id
+        ( uint64_t )process->id
       );
       // push process to clean up list
       if ( ! match ) {
-        list_push_back_data( process_manager->process_to_cleanup, process );
+        list_push_back_data( process_manager->process_to_cleanup, ( uintptr_t )process );
       }
     }
     // remove list item
@@ -431,7 +431,7 @@ task_thread_t* task_thread_get_blocked(
 ) {
   auto current = task_queue_get_first_blocked();
   while ( current ) {
-    auto const thread = ( task_thread_t* )current->data;
+    auto const thread = ( task_thread_t* )( ( uintptr_t )current->data );
     if (
       thread->state == necessary_thread_state
       && thread->state_data.data_size == necessary_thread_data.data_size

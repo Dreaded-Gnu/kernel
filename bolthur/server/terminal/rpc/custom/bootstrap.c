@@ -179,7 +179,7 @@ void rpc_custom_bootstrap(
   auto current = terminal_list->first;
   while ( current ) {
     // get terminal
-    auto const term = ( terminal_t* )current->data;
+    auto const term = ( terminal_t* )( ( uintptr_t )current->data );
     // adjust max row
     term->max_row = resolution_data.height / ttf_glyph_height();
     if ( 0 == resolution_data.height % ttf_glyph_height() ) {

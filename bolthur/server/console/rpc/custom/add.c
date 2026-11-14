@@ -64,7 +64,7 @@ void rpc_custom_handle_console_add(
   // try to lookup by name
   const list_item_t* container_item = list_lookup_data(
     console_list,
-    command->terminal
+    ( uintptr_t )command->terminal
   );
   // handle already existing
   if ( container_item ) {
@@ -120,7 +120,7 @@ void rpc_custom_handle_console_add(
   console->ios.c_cc[ VMIN ] = 1; // minimum one character block
   console->ios.c_cc[ VTIME ] = 0; // no timeout
   // push to list
-  if ( ! list_push_back_data( console_list, console ) ) {
+  if ( ! list_push_back_data( console_list, ( uintptr_t )console ) ) {
     console_destroy( console );
     free( request );
     error.status = -ENOMEM;

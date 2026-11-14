@@ -164,7 +164,7 @@ static void task_process_free( task_process_t* proc ) {
 }
 
 /**
- * @fn int32_t cleanup_process_lookup_id(const list_item_t*, const void*)
+ * @fn int32_t cleanup_process_lookup_id(const list_item_t*, const uint64_t)
  * @brief Compare id callback necessary for cleanup list
  *
  * @param a
@@ -173,9 +173,9 @@ static void task_process_free( task_process_t* proc ) {
  */
 static int32_t cleanup_process_lookup_id(
   const list_item_t* a,
-  const void* data
+  const uint64_t data
 ) {
-  const task_process_t* process = a->data;
+  auto const process = ( const task_process_t* )( ( uintptr_t )a->data );
   return process->id == ( pid_t )data ? 0 : 1;
 }
 
@@ -187,7 +187,7 @@ static int32_t cleanup_process_lookup_id(
  * @return
  */
 static void cleanup_process_delete( list_item_t* a ) {
-  task_process_t* process = a->data;
+  auto const process = ( task_process_t* )( ( uintptr_t )a->data );
   task_process_free( process );
   list_default_cleanup( a );
 }
@@ -505,7 +505,7 @@ task_process_t* task_process_fork( const task_thread_t* thread_calling ) {
   auto current = proc->thread_list->first;
   while ( current ) {
     // get thread
-    auto const thread = ( task_thread_t* )current->data;
+    auto const thread = ( task_thread_t* )( ( uintptr_t )current->data );
     // try to fork it
     if ( ! task_thread_fork( forked, thread ) ) {
       task_process_free( forked );
@@ -535,13 +535,13 @@ void task_process_cleanup(
   // loop
   while ( current ) {
     // get process from item
-    auto const proc = ( task_process_t* )current->data;
+    auto const proc = ( task_process_t* )( ( uintptr_t )current->data );
     // check for running thread
     auto current_thread = proc->thread_list->first;
     bool skip = false;
     while ( current_thread ) {
       // get thread
-      auto const thread = ( task_thread_t* )current_thread->data;
+      auto const thread = ( task_thread_t* )( ( uintptr_t )current_thread->data );
       // check for active
       if ( thread->state != TASK_THREAD_STATE_KILL ) {
         skip = true;
@@ -665,7 +665,7 @@ bool task_process_prepare_init( task_process_t* proc ) {
   if ( ! proc->thread_list->first || ! proc->thread_list->first->data ) {
     return false;
   }
-  auto const thread = ( task_thread_t* )proc->thread_list->first->data;
+  auto const thread = ( task_thread_t* )( ( uintptr_t )proc->thread_list->first->data );
 
   // empty env for init
   char* env[] = { nullptr, };
@@ -718,7 +718,7 @@ void task_process_prepare_kill( task_process_t* proc ) {
   // loop through all threads set appropriate state for kill
   while ( current ) {
     // get thread
-    auto const thread = ( task_thread_t* )current->data;
+    auto const thread = ( task_thread_t* )( ( uintptr_t )current->data );
     // set process state
     task_thread_set_state( thread, TASK_THREAD_STATE_KILL );
     // get next thread
@@ -727,7 +727,7 @@ void task_process_prepare_kill( task_process_t* proc ) {
   // unregister possible interrupts
   interrupt_unregister_process( proc );
   // push process to clean up list
-  list_push_back_data( process_manager->process_to_cleanup, proc );
+  list_push_back_data( process_manager->process_to_cleanup, ( uintptr_t )proc );
   // trigger schedule and cleanup
   event_enqueue( EVENT_PROCESS );
   event_enqueue( EVENT_PROCESS_CLEANUP );
@@ -987,7 +987,7 @@ void task_unblock_threads(
   auto current = task_queue_get_first_blocked();
   while ( current ) {
     // get possible to unblock
-    auto const to_unblock = ( task_thread_t* )current->data;
+    auto const to_unblock = ( task_thread_t* )( ( uintptr_t )current->data );
     // go to next
     current = current->next;
     // handle different process => skip it

@@ -216,7 +216,7 @@ task_thread_t* task_thread_create(
   thread->vruntime = task_queue_min_vruntime();
   thread->weight = task_thread_priority_weight[ thread->nice_level + 20 ];
   // push back into free list
-  if ( ! list_push_back_data( process->thread_list, thread ) ) {
+  if ( ! list_push_back_data( process->thread_list, ( uintptr_t )thread ) ) {
     task_stack_manager_remove( stack_virtual, process->thread_stack_manager );
     virt_unmap_address_range( process->virtual_context, thread->stack_virtual - thread->stack_size, thread->stack_size, true );
     free( thread->current_context );
@@ -314,7 +314,7 @@ task_thread_t* task_thread_fork(
   }
 
   // push back thread into free list
-  if ( ! list_push_back_data( thread->process->thread_list, thread ) ) {
+  if ( ! list_push_back_data( thread->process->thread_list, ( uintptr_t )thread ) ) {
     task_stack_manager_remove(
       thread->stack_virtual,
       thread->process->thread_stack_manager

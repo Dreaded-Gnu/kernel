@@ -80,7 +80,7 @@ static int strpos( const char* haystack, const char* needle ) {
 }
 
 /**
- * @fn int32_t memory_lookup(const list_item_t*, const void*)
+ * @fn int32_t memory_lookup(const list_item_t*, const uint64_t)
  * @brief List lookup helper
  *
  * @param a
@@ -89,9 +89,9 @@ static int strpos( const char* haystack, const char* needle ) {
  */
 static int32_t memory_lookup(
   const list_item_t* a,
-  const void* data
+  const uint64_t data
 ) {
-  return ( ( framebuffer_memory_t* )a->data )->id == ( size_t )data
+  return ( ( framebuffer_memory_t* )( ( uintptr_t )a->data ) )->id == ( size_t )data
     ? 0 : 1;
 }
 
@@ -103,7 +103,7 @@ static int32_t memory_lookup(
  */
 static void memory_cleanup( list_item_t* a ) {
   // convert
-  const framebuffer_memory_t* mem = a->data;
+  auto const mem = ( const framebuffer_memory_t* )( ( uintptr_t )a->data );
   // handle shared memory id
   if ( mem->shm_id ) {
     // detach shared memory
@@ -544,7 +544,7 @@ void framebuffer_handle_surface_render(
   auto const info = ( framebuffer_surface_render_t* )
     request->container;
   // get item
-  list_item_t* item = list_lookup_data( memory_list, ( void* )info->surface_id );
+  list_item_t* item = list_lookup_data( memory_list, info->surface_id );
   if ( ! item ) {
     error.status = -errno;
     bolthur_rpc_return( RPC_VFS_IOCTL, &error, sizeof( error ), nullptr, 0 );
@@ -552,7 +552,7 @@ void framebuffer_handle_surface_render(
     return;
   }
   // get memory item
-  const framebuffer_memory_t* mem = item->data;
+  auto const mem = ( const framebuffer_memory_t* )( ( uintptr_t )item->data );
   // copy to current back buffer
   memcpy( current_back, mem->address, size );
   // flip it
@@ -644,7 +644,7 @@ void framebuffer_handle_surface_allocate(
   mem->id = memory_counter++;
   mem->depth = info->depth;
   // push back
-  if ( ! list_push_back_data( memory_list, mem ) ) {
+  if ( ! list_push_back_data( memory_list, ( uintptr_t )mem ) ) {
     while ( true ) {
       _syscall_memory_shared_detach( shm_id );
       if ( errno ) {
