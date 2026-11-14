@@ -21,7 +21,6 @@
 #include "process.h"
 #include "thread.h"
 #include "../panic.h"
-#include "../server.h"
 #include "../debug/debug.h"
 #include "../lib/inttypes.h"
 #include "../lib/stdlib.h"
@@ -179,8 +178,16 @@ void task_queue_enqueue( task_thread_t* thread ) {
   if ( ! queue_manager || ! queue_manager->thread_scheduling_tree || ! thread ) {
     return;
   }
+  // thread assertion
+  const bool thread_assertion = task_thread_current_thread != thread;
+  // debug output if assertion failed
+  #if defined( PRINT_PROCESS )
+    if ( ! thread_assertion ) {
+      DEBUG_OUTPUT( "Enqueue of %d failed, issued from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
+    }
+  #endif
   // assert not current thread
-  assert( task_thread_current_thread != thread );
+  assert( thread_assertion );
   // prepare queue node
   avl_prepare_node( &thread->queue_node, thread->vruntime );
   // add to tree
@@ -221,11 +228,15 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
   if ( ! queue_manager || ! queue_manager->thread_wait_queue || ! thread ) {
     return;
   }
-  #if defined( PRINT_PROCESS )
-    DEBUG_OUTPUT( "Unblocking %d from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
-  #endif
   // remove from blocked list
-  assert( list_remove_data( queue_manager->thread_wait_queue, thread, true ) );
+  const bool removal_result = list_remove_data( queue_manager->thread_wait_queue, thread, true );
+  // debug output if removal failed
+  #if defined( PRINT_PROCESS )
+    if ( ! removal_result ) {
+      DEBUG_OUTPUT( "Unblocking %d failed, issued from %p\r\n", thread->process->id, ( void* )__builtin_return_address( 0 ) )
+    }
+  #endif
+  assert( removal_result );
   // adjust vruntime for fair scheduling
   if ( thread->vruntime < queue_manager->min_vruntime ) {
     #if defined( PRINT_PROCESS )
@@ -251,8 +262,13 @@ void task_queue_dequeue_blocked( task_thread_t* thread ) {
       }
     #endif
   }
-  // enqueue again
-  task_queue_enqueue( thread );
+  // enqueue again in case it's not the current thread. This is necessary due to
+  // nested rpc where current thread could be blocked again during restore and
+  // unblocked immediately after since it is waiting for return and a possible
+  // dequeue is happening again
+  if ( task_thread_current_thread != thread ) {
+    task_queue_enqueue( thread );
+  }
 }
 
 /**

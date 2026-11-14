@@ -36,8 +36,8 @@ static uintptr_t initrd_address = 0;
 static size_t initrd_size = 0;
 
 /**
+ * @fn uintptr_t initrd_get_start_address(void)
  * @brief Method to get initrd address
- *
  * @return uintptr_t
  */
 uintptr_t initrd_get_start_address( void ) {
@@ -45,8 +45,8 @@ uintptr_t initrd_get_start_address( void ) {
 }
 
 /**
+ * @fn void initrd_set_start_address(uintptr_t)
  * @brief Method to set initrd address
- *
  * @param address
  */
 void initrd_set_start_address( const uintptr_t address ) {
@@ -54,8 +54,8 @@ void initrd_set_start_address( const uintptr_t address ) {
 }
 
 /**
+ * @fn uintptr_t initrd_get_end_address(void)
  * @brief Get end address of initrd
- *
  * @return uintptr_t
  */
 uintptr_t initrd_get_end_address( void ) {
@@ -63,8 +63,8 @@ uintptr_t initrd_get_end_address( void ) {
 }
 
 /**
- * @brief Get total size of initrd
- *
+ * @fn size_t initrd_get_size(void)
+* @brief Get total size of initrd
  * @return size_t
  */
 size_t initrd_get_size( void ) {
@@ -72,8 +72,8 @@ size_t initrd_get_size( void ) {
 }
 
 /**
+ * @fn void initrd_set_size(size_t)
  * @brief Set initrd size
- *
  * @param size
  */
 void initrd_set_size( const size_t size ) {
@@ -81,8 +81,8 @@ void initrd_set_size( const size_t size ) {
 }
 
 /**
+ * @fn bool initrd_exist(void)
  * @brief Method to check for initrd exists
- *
  * @return true initrd existing
  * @return false initrd missing
  */
@@ -109,5 +109,4 @@ void initrd_unmap( void ) {
     // get to next page
     start += PAGE_SIZE;
   }
-  /// FIXME: IMPLEMENT
 }

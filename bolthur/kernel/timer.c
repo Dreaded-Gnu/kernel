@@ -321,12 +321,6 @@ void timer_handle_callback( void ) {
         current = current->next;
         continue;
       }
-    } else if (
-        TASK_THREAD_STATE_READY == entry->thread->state
-        || TASK_THREAD_STATE_RPC_QUEUED == entry->thread->state
-    ) {
-      // remove from wait queue
-      task_queue_dequeue_blocked( entry->thread );
     }
     // cache current and set to next
     list_item_t* to_remove = current;
