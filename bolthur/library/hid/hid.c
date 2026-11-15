@@ -502,6 +502,8 @@ int hid_get_report(
  * @param buffer buffer to send
  * @param buffer_size buffer size
  * @return
+ *
+ * @todo transform to async ioctl
  */
 int hid_set_report( const uint32_t device_number, const uint8_t report_type, const uint8_t report_id, void* buffer, const size_t buffer_size) {
   // validate parameter

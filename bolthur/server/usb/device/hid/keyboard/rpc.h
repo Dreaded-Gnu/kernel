@@ -22,6 +22,8 @@
 
 #include <sys/bolthur.h>
 
+// default
+void rpc_default_timer( size_t, pid_t, uint64_t, uint64_t );
 // generic
 void rpc_generic_add( size_t, pid_t, uint64_t, uint64_t );
 void rpc_generic_close( size_t, pid_t, uint64_t, uint64_t );

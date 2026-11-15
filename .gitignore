@@ -112,3 +112,6 @@ Makefile
 *.su
 *.idb
 *.pdb
+
+# excludes
+!/tool/Makefile

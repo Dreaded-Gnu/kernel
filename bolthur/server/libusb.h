@@ -770,13 +770,23 @@ typedef struct __packed {
 
 #define KEYBOARD_REPORT_SIZE 8
 #define KEYBOARD_MAX_KEYS 6
+#define KEYBOARD_MAX_KEY_STATE 256
+
+typedef struct {
+  uint16_t key;
+  bool active;
+  bool repeating;
+  uint64_t timer;
+} libusb_keyboard_repeat_t;
 
 typedef struct libusb_keyboard_device libusb_keyboard_device_t;
 typedef struct libusb_keyboard_device {
   libusb_driver_data_header header;
   uint32_t index;
-  uint32_t key_count;
-  uint16_t max_key_down[ KEYBOARD_MAX_KEYS ];
+  uint16_t current_key_down[ KEYBOARD_MAX_KEYS ];
+  uint16_t previous_key_down[ KEYBOARD_MAX_KEYS ];
+  bool keyboard_state[ KEYBOARD_MAX_KEY_STATE ];
+  libusb_keyboard_repeat_t repeat;
   libusb_keyboard_modifier_t modifier;
   libusb_keyboard_led_t led;
   libusb_hid_parser_fields_t* led_field[ 8 ];

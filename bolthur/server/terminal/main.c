@@ -139,7 +139,7 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   #if defined( TERMINAL_ENABLE_OUTPUT )
     EARLY_STARTUP_PRINT( "Set nice level\r\n" )
   #endif
-  if ( 0 != nice( -20 ) ) {
+  if ( 0 != nice( -10 ) ) {
     #if defined( TERMINAL_ENABLE_OUTPUT )
       EARLY_STARTUP_PRINT( "Unable to set nice level\r\n" )
     #endif

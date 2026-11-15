@@ -15,6 +15,7 @@ keyboard_LDADD = \
   $(CONFINI_LIBS) \
   ${abs_top_builddir}/../library/vfs/libvfs.la
 keyboard_SOURCES = \
+  rpc/default/timer.c \
   rpc/generic/add.c \
   rpc/generic/close.c \
   rpc/generic/exec.c \
@@ -31,7 +32,9 @@ keyboard_SOURCES = \
   rpc/keyboard/detach.c \
   rpc/keyboard/key.c \
   rpc/init.c \
+  console.c \
   keyboard.c \
   keymap.c \
-  main.c
+  main.c \
+  timer.c
 keyboard_LDFLAGS = -all-static --static

@@ -29,6 +29,14 @@
  * @return
  */
 bool rpc_init( void ) {
+  // default handler
+  bolthur_rpc_bind( RPC_TIMER, rpc_default_timer, true );
+  if ( errno ) {
+    #if defined( KEYBOARD_ENABLE_OUTPUT )
+      STARTUP_PRINT( "Unable to register handler timer!\r\n" )
+    #endif
+    return false;
+  }
   // register generic handlers
   bolthur_rpc_bind( RPC_VFS_ADD, rpc_generic_add, true );
   if ( errno ) {

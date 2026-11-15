@@ -168,9 +168,9 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
     return -1;
   }
 
-  // wait for rpc
+  // loop endlessly and check periodically for changes
   #if defined( USBD_ENABLE_OUTPUT )
-    STARTUP_PRINT( "Wait for rpc\r\n" )
+    STARTUP_PRINT( "Looping with enumeration\r\n" )
   #endif
   while ( true ) {
     // debug output

@@ -24,6 +24,9 @@
 
 #define KEYBOARD_ENABLE_OUTPUT 1
 
+#define KEYBOARD_REPEAT_INITIAL_DEADLINE_MILLISECONDS 500
+#define KEYBOARD_REPEAT_REPEAT_DEADLINE_MILLISECONDS 50
+
 extern libusb_keyboard_device_t* keyboard_head;
 
 void keyboard_append( libusb_keyboard_device_t* );
@@ -38,5 +41,9 @@ int32_t keyboard_bit_get_signed( const uint8_t*, uint32_t, uint32_t );
 uint32_t keyboard_bit_get_unsigned( const uint8_t*, uint32_t, uint32_t );
 int32_t keyboard_bit_get_value( const libusb_hid_parser_fields_t*, uint32_t );
 int keyboard_set_led( const libusb_keyboard_device_t*, const libusb_keyboard_led_t* );
+bool keyboard_contains_key( const uint16_t*, uint16_t, size_t );
+void keyboard_emit_key( const libusb_keyboard_device_t*, uint16_t, pid_t, uint64_t );
+void keyboard_key_down( libusb_keyboard_device_t*, uint16_t, pid_t, uint64_t );
+void keyboard_key_up( libusb_keyboard_device_t*, uint16_t );
 
 #endif

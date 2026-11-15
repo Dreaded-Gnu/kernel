@@ -22,12 +22,19 @@
 #include <string.h>
 #include <inttypes.h>
 #include <sys/bolthur.h>
+#include <sys/ioctl.h>
 #include "keyboard.h"
-#include "rpc.h"
 
+#include "console.h"
+#include "global.h"
+#include "keymap.h"
+#include "rpc.h"
+#include "timer.h"
+#include "../../../../libconsole.h"
 #include "../../../../../library/hid/hid.h"
 #include "../../../../../library/usb/usb.h"
 #include "../../../../../library/util/max.h"
+#include "../../../../../library/util/min.h"
 
 /**
  * @brief Head of keyboard device list
@@ -405,4 +412,219 @@ int keyboard_set_led( const libusb_keyboard_device_t* dev, const libusb_keyboard
     dev->buffer,
     dev->led_report->report_length
   );
+}
+
+/**
+ * @fn bool keyboard_contains_key(const uint16_t*, uint16_t, size_t)
+ * @brief Helper to check if array contains key
+ * @param keys
+ * @param key
+ * @param max
+ * @return
+ */
+bool keyboard_contains_key( const uint16_t* keys, const uint16_t key, const size_t max ) {
+  for ( size_t i = 0; i < max; i++ ) {
+    if ( keys[i] == key ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * @fn void keyboard_emit_key(const libusb_keyboard_device_t* uint16_t, pid_t, uint64_t)
+ * @brief Emit keyboard key
+ * @param dev
+ * @param key
+ * @param origin
+ * @param data_info
+ */
+void keyboard_emit_key(
+  const libusb_keyboard_device_t* dev,
+  const uint16_t key,
+  const pid_t origin,
+  const uint64_t data_info
+) {
+  // translate key code
+  uint16_t translated;
+  if ( 0 != keymap_translate( key, dev, &translated ) ) {
+    return;
+  }
+  // handle nothing
+  if ( key == KEYMAP_SPECIAL_KEY_NONE ) {
+    return;
+  }
+  // cache key map
+  keymap_t* keymap = dev->keymap;
+  char tmp_buffer[ 10 ] = { 0, };
+  // debug print physical key and key code
+  #if defined ( KEYBOARD_ENABLE_OUTPUT )
+    EARLY_STARTUP_PRINT( "key: %02"PRIx16" / %02"PRIx16" / %c\r\n",
+      key, translated, ( uint8_t )translated );
+  #endif
+  bool set_led = false;
+  switch ( translated ) {
+    case KEYMAP_SPECIAL_KEY_CAPS_LOCK:
+      keymap->caps_lock = !keymap->caps_lock;
+      if ( dev->led.caps_lock ) {
+        dev->led_field[ 1 ]->value._bool = keymap->caps_lock;
+      }
+      set_led = true;
+      break;
+    case KEYMAP_SPECIAL_KEY_NUM_LOCK:
+      keymap->num_lock = !keymap->num_lock;
+      if ( dev->led.num_lock ) {
+        dev->led_field[ 0 ]->value._bool = keymap->num_lock;
+      }
+      set_led = true;
+      break;
+    case KEYMAP_SPECIAL_KEY_SCROLL_LOCK:
+      keymap->scroll_lock = !keymap->scroll_lock;
+      if ( dev->led.scroll_lock ) {
+        dev->led_field[ 2 ]->value._bool = keymap->scroll_lock;
+      }
+      set_led = true;
+      break;
+    default:
+      // clear buffer and translate to string
+      memset( tmp_buffer, 0, sizeof( tmp_buffer ) );
+      if ( 0 != keymap_to_string( translated, dev, tmp_buffer ) ) {
+        return;
+      }
+  }
+  // handle set led
+  if ( set_led ) {
+    // set led
+    [[maybe_unused]] const int result = keyboard_set_led( dev, &(const libusb_keyboard_led_t){
+      .num_lock = dev->led.num_lock ? dev->led_field[ 0 ]->value._bool : false,
+      .caps_lock = dev->led.caps_lock ? dev->led_field[ 1 ]->value._bool : false,
+      .scroll_lock = dev->led.scroll_lock ? dev->led_field[ 2 ]->value._bool : false,
+      .compose = dev->led.compose ? dev->led_field[ 3 ]->value._bool : false,
+      .kana = dev->led.kana ? dev->led_field[ 4 ]->value._bool : false,
+      .power = dev->led.power ? dev->led_field[ 5 ]->value._bool : false,
+      .shift = dev->led.shift ? dev->led_field[ 6 ]->value._bool : false,
+      .mute = dev->led.mute ? dev->led_field[ 7 ]->value._bool : false,
+    });
+    // check result
+    #if defined( KEYBOARD_ENABLE_OUTPUT )
+      if ( 0 != result ) {
+        EARLY_STARTUP_PRINT( "Unable to set led: %s\r\n", strerror( result ) );
+      }
+    #endif
+    // skip rest
+    return;
+  }
+  // handle input buffer
+  if ( strlen( tmp_buffer ) ) {
+    // allocate input command
+    console_command_input_t* input_command = malloc( sizeof( *input_command ) );
+    if ( ! input_command ) {
+      return;
+    }
+    // clear out input commend
+    memset( input_command, 0, sizeof( *input_command ) );
+    // copy over
+    strncpy(
+      input_command->input,
+      tmp_buffer,
+      size_min( strlen( tmp_buffer ) + 1, CONSOLE_MAX_INPUT_SEQUENCE - 1 )
+    );
+    // raise input request async
+    // calculate rpc request size
+    constexpr size_t rpc_request_size = sizeof( vfs_ioctl_perform_request_t )
+      + sizeof( *input_command );
+    // allocate rpc structures
+    vfs_ioctl_perform_request_t* rpc_request = malloc( rpc_request_size );
+    if ( ! rpc_request ) {
+      free( input_command );
+      _syscall_rpc_cleanup();
+      return;
+    }
+    // clear rpc structures
+    memset( rpc_request, 0, rpc_request_size );
+    // populate structure
+    rpc_request->handle = console_fd;
+    rpc_request->command = CONSOLE_INPUT;
+    rpc_request->type = IOCTL_RDWR;
+    // copy over data
+    memcpy( rpc_request->container, input_command, sizeof( *input_command ) );
+    // raise rpc and wait for return
+    const uint64_t response_id = bolthur_rpc_raise(
+      RPC_VFS_IOCTL,
+      VFS_DAEMON_ID,
+      rpc_request,
+      rpc_request_size,
+      console_complete,
+      RPC_VFS_IOCTL,
+      rpc_request,
+      rpc_request_size,
+      origin,
+      data_info,
+      nullptr,
+      false
+    );
+    // handle response issue
+    if ( ! response_id ) {
+      // debug output
+      #if defined( KEYBOARD_ENABLE_OUTPUT )
+        EARLY_STARTUP_PRINT( "Pushing input to console failed\r\n" )
+      #endif
+      free( rpc_request );
+      free( input_command );
+      _syscall_rpc_cleanup();
+      return;
+    }
+    free( rpc_request );
+    free( input_command );
+  }
+}
+
+/**
+ * @fn void keyboard_key_down(libusb_keyboard_device_t*, uint16_t, pid_t, uint64_t)
+ * @brief Key down handler
+ * @param dev
+ * @param key
+ * @param origin
+ * @param data_info
+ */
+void keyboard_key_down(
+  libusb_keyboard_device_t* dev,
+  const uint16_t key,
+  const pid_t origin,
+  const uint64_t data_info
+) {
+  if ( dev->keyboard_state[ key ] ) {
+    return;
+  }
+  dev->keyboard_state[ key ] = true;
+  // emit key
+  keyboard_emit_key( dev, key, origin, data_info );
+  // start repeat
+  if ( ! dev->repeat.timer ) {
+    dev->repeat.timer = timer_acquire( KEYBOARD_REPEAT_INITIAL_DEADLINE_MILLISECONDS );
+  }
+  dev->repeat.key = key;
+  dev->repeat.active = true;
+  dev->repeat.repeating = false;
+}
+
+/**
+ * @fn void keyboard_key_up(libusb_keyboard_device_t*, uint16_t)
+ * @brief Key up handler
+ * @param dev
+ * @param key
+ */
+void keyboard_key_up( libusb_keyboard_device_t* dev, const uint16_t key ) {
+  if ( ! dev->keyboard_state[ key ] ) {
+    return;
+  }
+  dev->keyboard_state[ key ] = false;
+  if ( dev->repeat.active && dev->repeat.key == key ) {
+    dev->repeat.active = false;
+    dev->repeat.repeating = false;
+    if ( dev->repeat.timer ) {
+      _syscall_timer_release( dev->repeat.timer );
+      dev->repeat.timer = 0;
+    }
+  }
 }

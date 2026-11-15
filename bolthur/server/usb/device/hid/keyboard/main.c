@@ -24,6 +24,7 @@
 #include "keyboard.h"
 #include "keymap.h"
 #include "rpc.h"
+#include "global.h"
 #include "../../../../libusbd.h"
 #include "../../../../../library/usb/usb.h"
 #include "../../../../../library/hid/hid.h"
@@ -154,6 +155,17 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   if ( ! vfs_dev_add_file( KEYBOARD_DEVICE_PATH, device_info, 3, nullptr ) ) {
     #if defined( KEYBOARD_ENABLE_OUTPUT )
       STARTUP_PRINT( "Unable to add dev usbd\r\n" )
+    #endif
+    return -1;
+  }
+
+  // set nice level
+  #if defined( KEYBOARD_ENABLE_OUTPUT )
+    STARTUP_PRINT( "Set nice level\r\n" )
+  #endif
+  if ( 0 != nice( -20 ) ) {
+    #if defined( KEYBOARD_ENABLE_OUTPUT )
+      STARTUP_PRINT( "Unable to set nice level\r\n" )
     #endif
     return -1;
   }
