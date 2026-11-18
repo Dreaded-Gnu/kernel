@@ -21,7 +21,7 @@ image: $(OBJFILES)
 	@echo $(SRCFILES)
 	@echo $(OBJFILES)
 	@echo $(CC) $(LDFLAGS) -o image $?
-	@$(CC) $(LDFLAGS) -o image $?
+	@$(CC) $(LDFLAGS) -o image $^
 
 clean:
 	-@$(RM) $(wildcard $(OBJFILES) image)
