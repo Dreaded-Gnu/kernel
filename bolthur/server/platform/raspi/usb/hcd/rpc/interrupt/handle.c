@@ -384,20 +384,6 @@ void rpc_interrupt_handle(
           uint32_t split_control = mmio_read( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ) );
           split_control |= HCD_DWHCI_CHAN_SPLIT_CONTROL_COMPLETE_SPLIT( 1 );
           mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_SPLIT_CTRL( channel ), split_control );
-          // evaluate paket count
-          const usb_interrupt_poll_t* entry_data = entry->data;
-          uint32_t packet_count = ( entry->buffer_size_to_transfer + 7 ) / 8;
-          if ( LIBUSB_SPEED_LOW != entry_data->pipe_address.speed ) {
-            packet_count = ( entry->buffer_size_to_transfer + usb_number_from_packet_size( entry_data->pipe_address.max_size ) - 1 ) / usb_number_from_packet_size( entry_data->pipe_address.max_size );
-          }
-          if ( 0 == packet_count ) {
-            packet_count = 1;
-          }
-          // write transfer data again
-          const uint32_t transfer_data = HCD_DWHCI_CHAN_XFER_SIZE_TRANSFER_SIZE( entry->buffer_size_to_transfer )
-            | HCD_DWHCI_CHAN_XFER_SIZE_PACKET_ID( entry->poll_state )
-            | HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( packet_count );
-          mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_XFER_SIZE( channel ), transfer_data );
           // write int mask again
           mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( channel ),
             HCD_CHANNEL_INTERRUPT_TRANSFER_COMPLETE

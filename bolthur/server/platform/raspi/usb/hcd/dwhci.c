@@ -99,7 +99,7 @@ response_t dwhci_prepare_channel(
       split_control |= HCD_DWHCI_CHAN_SPLIT_CONTROL_COMPLETE_SPLIT( 1 );
     }
   }
-  // evaluate paket count
+  // evaluate packet count
   uint32_t packet_count = ( buffer_length + 7 ) / 8;
   if ( LIBUSB_SPEED_LOW != usb_pipe->speed ) {
     packet_count = (
@@ -110,7 +110,6 @@ response_t dwhci_prepare_channel(
   }
   // populate packet size
   entry->packet_size = usb_number_from_packet_size( usb_pipe->max_size );
-  // reset packet count and buffer_size for data to one packet at the time
   // debug output
   #if defined ( DWHCI_ENABLE_DEBUG )
     EARLY_STARTUP_PRINT( "packet_count = %"PRIu32", buffer_length = %"PRIu32"\r\n",
@@ -133,7 +132,7 @@ response_t dwhci_prepare_channel(
   }
   // set packet count
   transfer_data |= HCD_DWHCI_CHAN_XFER_SIZE_PACKET_COUNT( packet_count );
-  // set odd frame only for pollings
+  // set odd frame only for polling
   if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
     // calculate target frame
     const uint32_t frame_number = mmio_read( PERIPHERAL_DWHCI_HOST_FRM_NUM );
@@ -536,10 +535,6 @@ response_t dwhci_channel_prepare_dma( channel_queue_entry_t* entry ) {
     #endif
     // return result
     return HCD_RESPONSE_ERROR_IO;
-  }
-  // set time
-  if ( DWHCI_QUEUE_POLL_STATUS_DATA == entry->status ) {
-    entry->last_tick_count = _syscall_timer_tick_count();
   }
   // disable all interrupts in mask
   mmio_write( PERIPHERAL_DWHCI_HOST_CHAN_INT_MASK( entry->channel ), 0 );
@@ -1362,6 +1357,8 @@ response_t dwhci_channel_poll_async_data( channel_queue_entry_t* entry ) {
     // return result
     return result;
   }
+  // set time
+  entry->last_tick_count = _syscall_timer_tick_count();
   // start send data packet
   return dwhci_channel_send_async_start_channel( entry );
 }

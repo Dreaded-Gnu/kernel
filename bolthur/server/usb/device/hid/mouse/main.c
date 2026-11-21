@@ -133,6 +133,17 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   #endif
   _syscall_rpc_set_ready( true );
 
+  // set nice level
+  #if defined( MOUSE_ENABLE_OUTPUT )
+    STARTUP_PRINT( "Set nice level\r\n" )
+  #endif
+  if ( 0 != nice( -20 ) ) {
+    #if defined( MOUSE_ENABLE_OUTPUT )
+      STARTUP_PRINT( "Unable to set nice level\r\n" )
+    #endif
+    return -1;
+  }
+
   // add device file
   #if defined( MOUSE_ENABLE_OUTPUT )
     STARTUP_PRINT( "Sending device to vfs\r\n" )

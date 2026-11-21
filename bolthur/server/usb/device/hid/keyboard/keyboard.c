@@ -596,16 +596,22 @@ void keyboard_key_down(
   if ( dev->keyboard_state[ key ] ) {
     return;
   }
+  // set key down state to true
   dev->keyboard_state[ key ] = true;
   // emit key
   keyboard_emit_key( dev, key, origin, data_info );
-  // start repeat
-  if ( ! dev->repeat.timer ) {
-    dev->repeat.timer = timer_acquire( KEYBOARD_REPEAT_INITIAL_DEADLINE_MILLISECONDS );
+  // clear running timer if active
+  if ( dev->repeat.active ) {
+    _syscall_timer_release( dev->repeat.timer );
+    dev->repeat.timer = 0;
   }
+  // set repeat key
   dev->repeat.key = key;
+  // change repeat to active and repeating to false
   dev->repeat.active = true;
   dev->repeat.repeating = false;
+  // start initial timer
+  dev->repeat.timer = timer_acquire( KEYBOARD_REPEAT_INITIAL_DEADLINE_MILLISECONDS );
 }
 
 /**
@@ -618,13 +624,17 @@ void keyboard_key_up( libusb_keyboard_device_t* dev, const uint16_t key ) {
   if ( ! dev->keyboard_state[ key ] ) {
     return;
   }
+  // set key down state to false
   dev->keyboard_state[ key ] = false;
+  // handle repeat active for key
   if ( dev->repeat.active && dev->repeat.key == key ) {
-    dev->repeat.active = false;
-    dev->repeat.repeating = false;
+    // reset timer if set
     if ( dev->repeat.timer ) {
       _syscall_timer_release( dev->repeat.timer );
       dev->repeat.timer = 0;
     }
+    // reset active and repeating
+    dev->repeat.active = false;
+    dev->repeat.repeating = false;
   }
 }

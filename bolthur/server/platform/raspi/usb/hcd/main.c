@@ -19,6 +19,7 @@
 
 // system includes
 #include <stdio.h>
+#include <sys/unistd.h>
 #include <sys/bolthur.h>
 // local includes
 #include "dwhci.h"
@@ -73,6 +74,16 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   if ( HCD_RESPONSE_OK != result ) {
     #if defined( HCD_ENABLE_OUTPUT )
       STARTUP_PRINT( "Unable to init dwhci: %s\r\n", response_error( result ) );
+    #endif
+    return -1;
+  }
+  // set nice level
+  #if defined( HCD_ENABLE_OUTPUT )
+    STARTUP_PRINT( "Set nice level\r\n" )
+  #endif
+  if ( 0 != nice( -20 ) ) {
+    #if defined( HCD_ENABLE_OUTPUT )
+      STARTUP_PRINT( "Unable to set nice level\r\n" )
     #endif
     return -1;
   }

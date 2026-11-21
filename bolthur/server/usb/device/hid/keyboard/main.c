@@ -143,6 +143,17 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
     return -1;
   }
 
+  // set nice level
+  #if defined( KEYBOARD_ENABLE_OUTPUT )
+    STARTUP_PRINT( "Set nice level\r\n" )
+  #endif
+  if ( 0 != nice( -20 ) ) {
+    #if defined( KEYBOARD_ENABLE_OUTPUT )
+      STARTUP_PRINT( "Unable to set nice level\r\n" )
+    #endif
+    return -1;
+  }
+
   // add device file
   #if defined( KEYBOARD_ENABLE_OUTPUT )
     STARTUP_PRINT( "Sending device to vfs\r\n" )
@@ -155,17 +166,6 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] char* argv[] ) {
   if ( ! vfs_dev_add_file( KEYBOARD_DEVICE_PATH, device_info, 3, nullptr ) ) {
     #if defined( KEYBOARD_ENABLE_OUTPUT )
       STARTUP_PRINT( "Unable to add dev usbd\r\n" )
-    #endif
-    return -1;
-  }
-
-  // set nice level
-  #if defined( KEYBOARD_ENABLE_OUTPUT )
-    STARTUP_PRINT( "Set nice level\r\n" )
-  #endif
-  if ( 0 != nice( -20 ) ) {
-    #if defined( KEYBOARD_ENABLE_OUTPUT )
-      STARTUP_PRINT( "Unable to set nice level\r\n" )
     #endif
     return -1;
   }
